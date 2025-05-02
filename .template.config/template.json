@@ -54,9 +54,6 @@
             "**/TestResults/**",
             "**/coverage.*"
         ],
-        "rename": {
-            "TemporaryName": "SourceName"
-        },
         "modifiers": [
            {
               "files": "**/*.csproj",
