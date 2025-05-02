@@ -1,0 +1,69 @@
+{
+    "$schema": "http://json.schemastore.org/template",
+    "author": "Polat Efe Kaya",
+    "classifications": [ "Web", "API", "Microservice", "Service", ".NET", "Neavents" ],
+    "identity": "PolatEfeKaya.Neavents.Microservice.Base.Template",
+    "name": ".NET Microservice Base Template",
+    "shortName": "neavents-micro-base",
+    "description": "A foundational .NET microservice template following clean practices for Neavents.",
+    "tags": {
+        "language": "C#",
+        "type": "project"
+    },
+    "sourceName": "TemporaryName",
+    "preferNameDirectory": true,
+    "symbols": {
+      "Framework": {
+          "type": "parameter",
+          "description": "The target framework for the project.",
+          "datatype": "choice",
+          "choices": [
+              {
+                  "choice": "net9.0",
+                  "description": ".NET 9.0"
+              }
+          ],
+          "replaces": "TargetFrameworkOverride",
+          "defaultValue": "net9.0"
+      },
+      "skipRestore": {
+         "type": "parameter",
+         "datatype": "bool",
+         "description": "If true, skips restoring dependencies on creation.",
+         "defaultValue": "false"
+      }
+    },
+    "sources": [
+      {
+        "source": "./",
+        "target": "./",
+        "exclude": [
+            ".template.config/**",
+            "**/[Bb]in/**",
+            "**/[Oo]bj/**",
+            ".git/**",
+            ".gitignore",
+            ".vs/**",
+            ".vscode/**",
+            "*.suo",
+            "*.user",
+            "*.DS_Store",
+            "Thumbs.db",
+            "**/packages.lock.json",
+            ".idea/**",
+            "**/TestResults/**",
+            "**/coverage.*"
+        ],
+        "rename": {
+            "TemporaryName": "SourceName"
+        },
+        "modifiers": [
+           {
+              "files": "**/*.csproj",
+              "replace": "TargetFrameworkOverride",
+              "with": "{{Framework}}"
+           }
+        ]
+      }
+    ]
+  }
