@@ -6,4 +6,23 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SharedKernel/SharedKernel.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.BackgroundJobs.Hangfire/TemporaryName.Infrastructure.BackgroundJobs.Hangfire.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.BackgroundJobs.Quartz/TemporaryName.Infrastructure.BackgroundJobs.Quartz.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Caching.Redis/TemporaryName.Infrastructure.Caching.Redis.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.ChangeDataCapture.Debezium/TemporaryName.Infrastructure.ChangeDataCapture.Debezium.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Configuration/TemporaryName.Infrastructure.Configuration.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.HttpClient/TemporaryName.Infrastructure.HttpClient.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Messaging.MassTransit/TemporaryName.Infrastructure.Messaging.MassTransit.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Observability/TemporaryName.Infrastructure.Observability.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL/TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Persistence.Seeding/TemporaryName.Infrastructure.Persistence.Seeding.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Security.Auth.Keycloak/TemporaryName.Infrastructure.Security.Auth.Keycloak.csproj" />
+  </ItemGroup>
+
 </Project>
