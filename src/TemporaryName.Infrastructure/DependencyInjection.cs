@@ -1,7 +1,5 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using TemporaryName.Infrastructure.BackgroundJobs.Hangfire;
-using TemporaryName.Infrastructure.BackgroundJobs.Quartz;
 using TemporaryName.Infrastructure.Caching.Redis;
 using TemporaryName.Infrastructure.ChangeDataCapture.Debezium;
 using TemporaryName.Infrastructure.Configuration;
@@ -17,7 +15,7 @@ namespace TemporaryName.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureLayer(this IServiceCollection services){
-        services.AddBackgroundJobsLayer()
+        services
                 .AddPersistenceLayer()
                 .AddCachingLayer()
                 .AddHttpClientLayer()
@@ -27,13 +25,6 @@ public static class DependencyInjection
                 .AddObservabilityLayer()
                 .AddSecurityLayer();
                 
-        return services;
-    }
-
-    private static IServiceCollection AddBackgroundJobsLayer(this IServiceCollection services){
-        services.AddInfrastructureBackgroundJobsHangfire()
-                .AddInfrastructureBackgroundJobsQuartz();
-
         return services;
     }
 
