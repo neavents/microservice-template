@@ -1,44 +1,55 @@
 using TemporaryName.WebApi;
-var builder = WebApplication.CreateBuilder(args);
+using TemporaryName.Infrastructure.Hosting.Extensions;
+using Serilog;
+using Autofac.Extensions.DependencyInjection;
+using Autofac;
+using TemporaryName.Application;
+using TemporaryName.Infrastructure;
+using TemporaryName.Domain;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
+Log.Information("Starting WebApi");
 
-builder.Services.AddLayers();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi();
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+    builder.Host.ConfigureStandardAppConfiguration(args);
+
+
+    builder.Host.ConfigureContainer<ContainerBuilder>(autofacBuilder =>
+    {
+        autofacBuilder.RegisterModule<ApplicationServicesModule>()
+            .RegisterModule<InfrastructureModule>()
+            .RegisterModule<DomainModule>();
+    });
+
+    builder.Services.AddOpenApi();
+    //builder.Services.AddLayers();
+
+    var app = builder.Build();
+
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.MapOpenApi();
+    }
+
+    app.UseHttpsRedirection();
+
+
+    await app.RunAsync();
+}
+catch (Exception ex) when (ex is not HostAbortedException)
+{
+    Log.Fatal(ex, "Unhandled exception in WebApi");
+}
+finally
+{
+    Log.Information("Stopping WebApi");
+    await Log.CloseAndFlushAsync();
 }
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program { }

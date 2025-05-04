@@ -7,11 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" />
+    <PackageReference Include="Autofac.Extras.DynamicProxy" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.Console" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../TemporaryName.Application/TemporaryName.Application.csproj" />
+    <ProjectReference Include="../TemporaryName.Domain/TemporaryName.Domain.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Hosting.Extensions/TemporaryName.Infrastructure.Hosting.Extensions.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure/TemporaryName.Infrastructure.csproj" />
   </ItemGroup>
 

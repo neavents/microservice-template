@@ -6,4 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Abstractions/" />
+    <Folder Include="Abstractions/DomainServices/" />
+    <Folder Include="Abstractions/Repository/" />
+    <Folder Include="DomainEvents/" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,20 @@
+<Project>
+
+  <ItemGroup>
+    <CommonConfigFiles Include="$(MSBuildThisFileDirectory)config/appsettings.common.json" />
+    <CommonConfigFiles Include="$(MSBuildThisFileDirectory)config/appsettings.common.*.json" />
+  </ItemGroup>
+
+  <Target Name="CopyCommonAppSettings"
+          BeforeTargets="Build"
+          Condition="'$(OutputType)' == 'Exe' AND Exists('%(CommonConfigFiles.Identity)')">
+    <Message Text="Copying common appsettings files from /config to $(OutputPath)" Importance="high" />
+    <Copy
+      SourceFiles="@(CommonConfigFiles)"
+      DestinationFolder="$(OutputPath)"
+      SkipUnchangedFiles="true"
+      OverwriteReadOnlyFiles="true"
+      />
+  </Target>
+
+  </Project>

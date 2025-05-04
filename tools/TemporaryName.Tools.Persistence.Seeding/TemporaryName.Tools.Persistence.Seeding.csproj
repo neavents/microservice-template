@@ -7,4 +7,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TemporaryName.Infrastructure.Hosting.Extensions/TemporaryName.Infrastructure.Hosting.Extensions.csproj" />
+    <ProjectReference Include="../../src/TemporaryName.Infrastructure/TemporaryName.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
