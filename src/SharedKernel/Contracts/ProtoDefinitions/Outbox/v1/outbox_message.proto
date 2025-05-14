@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package temporaryname.outbox.v1;
+
+import "google/protobuf/timestamp.proto"; 
+import "google/protobuf/wrappers.proto"; 
+
+option csharp_namespace = "TemporaryName.Contracts.Outbox.V1.Proto"; // C# namespace for generated code
+
+enum OutboxMessageStatusProto {
+  OUTBOX_MESSAGE_STATUS_PROTO_UNSPECIFIED = 0;
+  OUTBOX_MESSAGE_STATUS_PROTO_PENDING = 1;
+  OUTBOX_MESSAGE_STATUS_PROTO_PUBLISHED = 2; // Or ProcessedByDebezium
+  OUTBOX_MESSAGE_STATUS_PROTO_FAILED_TO_PUBLISH = 3;
+}
+
+message OutboxMessageProto {
+  string id = 1; // UUID as string
+  string aggregate_type = 2;
+  string aggregate_id = 3;
+  string event_type = 4;
+  string payload = 5; // JSON string of the original domain event
+  google.protobuf.Timestamp occurred_on_utc = 6;
+  google.protobuf.Timestamp processed_on_utc = 7;
+  OutboxMessageStatusProto status = 8;
+  google.protobuf.StringValue error_details = 9; // Nullable string
+  google.protobuf.StringValue correlation_id = 10; // Nullable UUID as string
+}

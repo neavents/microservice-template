@@ -7,7 +7,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Protobuf" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TemporaryName.Infrastructure.Outbox.Abstractions/TemporaryName.Infrastructure.Outbox.Abstractions.csproj" />
+    <ProjectReference Include="../TemporaryName.SharedContracts.Protobuf/TemporaryName.SharedContracts.Protobuf.csproj" />
   </ItemGroup>
 
 </Project>

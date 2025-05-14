@@ -25,7 +25,6 @@ try
             .RegisterModule<InfrastructureModule>()
             .RegisterModule<DomainModule>();
     });
-
     builder.Services.AddOpenApi();
     //builder.Services.AddLayers();
 

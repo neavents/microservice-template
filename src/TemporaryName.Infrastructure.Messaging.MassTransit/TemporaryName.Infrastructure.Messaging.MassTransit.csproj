@@ -7,7 +7,29 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.EntityFrameworkCore" />
+    <PackageReference Include="MassTransit.Kafka" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TemporaryName.Application.Contracts/TemporaryName.Application.Contracts.csproj" />
+    <ProjectReference Include="../TemporaryName.Domain/TemporaryName.Domain.csproj" />
   </ItemGroup>
 
 </Project>
