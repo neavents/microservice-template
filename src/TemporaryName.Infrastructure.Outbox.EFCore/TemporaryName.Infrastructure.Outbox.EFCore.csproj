@@ -13,9 +13,11 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Polly" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../TemporaryName.Application.Contracts/TemporaryName.Application.Contracts.csproj" />
     <ProjectReference Include="../TemporaryName.Domain/TemporaryName.Domain.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Outbox.Abstractions/TemporaryName.Infrastructure.Outbox.Abstractions.csproj" />
   </ItemGroup>

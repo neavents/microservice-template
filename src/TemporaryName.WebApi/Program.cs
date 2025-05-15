@@ -6,6 +6,12 @@ using Autofac;
 using TemporaryName.Application;
 using TemporaryName.Infrastructure;
 using TemporaryName.Domain;
+using TemporaryName.Infrastructure.Caching.Redis;
+using TemporaryName.Infrastructure.ChangeDataCapture.Debezium;
+using TemporaryName.Infrastructure.HttpClient;
+using TemporaryName.Infrastructure.Messaging.MassTransit;
+using TemporaryName.Infrastructure.Observability;
+using TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
 Log.Information("Starting WebApi");
@@ -18,12 +24,17 @@ try
     builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
     builder.Host.ConfigureStandardAppConfiguration(args);
 
-
     builder.Host.ConfigureContainer<ContainerBuilder>(autofacBuilder =>
     {
         autofacBuilder.RegisterModule<ApplicationServicesModule>()
             .RegisterModule<InfrastructureModule>()
-            .RegisterModule<DomainModule>();
+            .RegisterModule<DomainModule>()
+            .RegisterModule<RedisCacheModule>()
+            .RegisterModule<DebeziumCdcModule>()
+            .RegisterModule<HttpClientModule>()
+            .RegisterModule<MassTransitModule>()
+            .RegisterModule<ObservabilityModule>()
+            .RegisterModule<PostgreSqlApplicationDataModule>();
     });
     builder.Services.AddOpenApi();
     //builder.Services.AddLayers();

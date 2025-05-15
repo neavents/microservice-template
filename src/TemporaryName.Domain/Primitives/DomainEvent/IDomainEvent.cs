@@ -2,6 +2,6 @@ namespace TemporaryName.Domain.Primitives.DomainEvent;
 
 public interface IDomainEvent
 {
-    Guid EventId { get; }
+    Guid Id { get; }
     DateTimeOffset OccurredOn { get; }
 }
