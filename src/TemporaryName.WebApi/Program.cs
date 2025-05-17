@@ -12,6 +12,7 @@ using TemporaryName.Infrastructure.HttpClient;
 using TemporaryName.Infrastructure.Messaging.MassTransit;
 using TemporaryName.Infrastructure.Observability;
 using TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL;
+using TemporaryName.Infrastructure.Security.Authorization.Extensions;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
 Log.Information("Starting WebApi");
@@ -34,7 +35,8 @@ try
             .RegisterModule<HttpClientModule>()
             .RegisterModule<MassTransitModule>()
             .RegisterModule<ObservabilityModule>()
-            .RegisterModule<PostgreSqlApplicationDataModule>();
+            .RegisterModule<PostgreSqlApplicationDataModule>()
+            .RegisterModule<AuthorizationModule>();
     });
     builder.Services.AddOpenApi();
     //builder.Services.AddLayers();
