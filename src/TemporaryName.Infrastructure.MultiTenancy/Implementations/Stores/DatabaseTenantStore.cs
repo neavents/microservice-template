@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharedKernel.Primitives;
@@ -14,37 +15,12 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 
 public class DatabaseTenantStore : ITenantStore
     {
-        private readonly IDbConnectionFactory _dbConnectionFactory; // CHANGED: Use the new abstraction
+        private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly ILogger<DatabaseTenantStore> _logger;
         private readonly MultiTenancyOptions _multiTenancyOptions;
-
-        // TenantDbo class remains the same...
-        private class TenantDbo
-        {
-            public string Id { get; set; } = string.Empty;
-            public string? Name { get; set; }
-            public string? ConnectionStringName { get; set; } // This is the tenant-specific CS, not the metadata one
-            public int Status { get; set; }
-            public string? Domain { get; set; }
-            public string? SubscriptionTier { get; set; }
-            public string? BrandingName { get; set; }
-            public string? LogoUrl { get; set; }
-            public int DataIsolationMode { get; set; }
-            public string? EnabledFeaturesJson { get; set; }
-            public string? CustomPropertiesJson { get; set; }
-            public string? PreferredLocale { get; set; }
-            public string? TimeZoneId { get; set; }
-            public string? DataRegion { get; set; }
-            public string? ParentTenantId { get; set; }
-            public DateTimeOffset CreatedAtUtc { get; set; }
-            public DateTimeOffset? UpdatedAtUtc { get; set; }
-            public string? ConcurrencyStamp { get; set; }
-            public string LookupIdentifier { get; set; } = string.Empty; // Key for finding this tenant record
-        }
-
-
+        private readonly JsonSerializerOptions _jsonSerializerOptions;
         public DatabaseTenantStore(
-            IDbConnectionFactory dbConnectionFactory, // CHANGED: Injected dependency
+            IDbConnectionFactory dbConnectionFactory, 
             IOptions<MultiTenancyOptions> multiTenancyOptionsAccessor,
             ILogger<DatabaseTenantStore> logger)
         {
@@ -56,20 +32,20 @@ public class DatabaseTenantStore : ITenantStore
             _logger = logger;
             _multiTenancyOptions = multiTenancyOptionsAccessor.Value;
 
-            if (_multiTenancyOptions == null) // This check is fine
+            _jsonSerializerOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            if (_multiTenancyOptions == null)
             {
                 Error error = new("MultiTenancy.Configuration.OptionsAccessorValueNull.DbStore", "IOptions<MultiTenancyOptions>.Value is null. DatabaseTenantStore cannot be initialized.");
                 _logger.LogCritical(error.Description);
                 throw new TenantConfigurationException(error.Description, error);
             }
 
-            // This check is still relevant for configuration sanity.
             if (_multiTenancyOptions.Store.Type != TenantStoreType.Database)
             {
                 _logger.LogWarning("DatabaseTenantStore is registered, but MultiTenancyOptions.Store.Type is '{StoreType}'. This store might not be used as intended by the configuration.", _multiTenancyOptions.Store.Type);
             }
 
-            // This connection string name is for the database *containing tenant metadata*.
             if (string.IsNullOrWhiteSpace(_multiTenancyOptions.Store.ConnectionStringName))
             {
                 Error error = new("MultiTenancy.Configuration.DbStore.MissingConnectionStringName", $"DatabaseTenantStore requires MultiTenancyOptions.Store.ConnectionStringName to be configured for the tenant metadata database.");
@@ -96,83 +72,82 @@ public class DatabaseTenantStore : ITenantStore
 
             try
             {
-                // Use the factory to get an open connection to the TENANT METADATA database.
+                // The factory to get an open connection to the TENANT METADATA database.
                 // _multiTenancyOptions.Store.ConnectionStringName! ensures non-null, checked in constructor.
-                await using DbConnection connection = await _dbConnectionFactory.CreateOpenConnectionAsync(_multiTenancyOptions.Store.ConnectionStringName!);
+                await using DbConnection connection = await _dbConnectionFactory.CreateOpenConnectionAsync(_multiTenancyOptions.Store.ConnectionStringName!).ConfigureAwait(false);
 
-                TenantDbo? tenantDbo = await connection.QuerySingleOrDefaultAsync<TenantDbo>(sql, new { Identifier = identifier });
+                DatabaseTenantDto? tenantDatabaseDto = await connection.QuerySingleOrDefaultAsync<DatabaseTenantDto>(sql, new { Identifier = identifier });
 
-                if (tenantDbo == null)
+                if (tenantDatabaseDto == null)
                 {
                     _logger.LogDebug("No tenant found in database for identifier '{Identifier}'.", identifier);
                     return null;
                 }
 
-                // Mapping DBO to ITenantInfo (logic remains the same as your original)
                 Uri? logoUri = null;
-                if (!string.IsNullOrWhiteSpace(tenantDbo.LogoUrl) &&
-                    (!Uri.TryCreate(tenantDbo.LogoUrl, UriKind.Absolute, out logoUri) ||
+                if (!string.IsNullOrWhiteSpace(tenantDatabaseDto.LogoUrl) &&
+                    (!Uri.TryCreate(tenantDatabaseDto.LogoUrl, UriKind.Absolute, out logoUri) ||
                      (logoUri?.Scheme != Uri.UriSchemeHttp && logoUri?.Scheme != Uri.UriSchemeHttps)))
                 {
-                    _logger.LogWarning("Tenant '{TenantId}' from DB: Invalid or non-HTTP/HTTPS LogoUrl '{LogoUrl}'. It will be ignored.", tenantDbo.Id, tenantDbo.LogoUrl);
+                    _logger.LogWarning("Tenant '{TenantId}' from DB: Invalid or non-HTTP/HTTPS LogoUrl '{LogoUrl}'. It will be ignored.", tenantDatabaseDto.Id, tenantDatabaseDto.LogoUrl);
                     logoUri = null;
                 }
 
                 HashSet<string>? enabledFeatures = null;
-                if (!string.IsNullOrWhiteSpace(tenantDbo.EnabledFeaturesJson))
+                if (!string.IsNullOrWhiteSpace(tenantDatabaseDto.EnabledFeaturesJson))
                 {
-                    try { enabledFeatures = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(tenantDbo.EnabledFeaturesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-                    catch (System.Text.Json.JsonException ex)
+                    try { enabledFeatures = JsonSerializer.Deserialize<HashSet<string>>(tenantDatabaseDto.EnabledFeaturesJson, _jsonSerializerOptions); }
+                    catch (JsonException ex)
                     {
-                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize EnabledFeaturesJson. Value: '{JsonValue}'", tenantDbo.Id, tenantDbo.EnabledFeaturesJson);
+                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize EnabledFeaturesJson. Value: '{JsonValue}'", tenantDatabaseDto.Id, tenantDatabaseDto.EnabledFeaturesJson);
                         // Error error = new("Tenant.Store.Db.Deserialization.EnabledFeatures", $"Failed to deserialize EnabledFeatures for tenant {tenantDbo.Id}.");
                         // No throw, proceed with empty.
                     }
                 }
 
                 Dictionary<string, string>? customProperties = null;
-                if (!string.IsNullOrWhiteSpace(tenantDbo.CustomPropertiesJson))
+                if (!string.IsNullOrWhiteSpace(tenantDatabaseDto.CustomPropertiesJson))
                 {
-                     try { customProperties = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(tenantDbo.CustomPropertiesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-                    catch (System.Text.Json.JsonException ex)
+                     try { customProperties = JsonSerializer.Deserialize<Dictionary<string, string>>(tenantDatabaseDto.CustomPropertiesJson, _jsonSerializerOptions); }
+                    catch (JsonException ex)
                     {
-                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize CustomPropertiesJson. Value: '{JsonValue}'", tenantDbo.Id, tenantDbo.CustomPropertiesJson);
+                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize CustomPropertiesJson. Value: '{JsonValue}'", tenantDatabaseDto.Id, tenantDatabaseDto.CustomPropertiesJson);
                         // Error error = new("Tenant.Store.Db.Deserialization.CustomProperties", $"Failed to deserialize CustomProperties for tenant {tenantDbo.Id}.");
                         // No throw, proceed with empty.
                     }
                 }
 
                 TenantInfo tenantInfo = new(
-                    id: tenantDbo.Id,
-                    name: tenantDbo.Name,
-                    connectionStringName: tenantDbo.ConnectionStringName, // This is the *tenant's own* CS name, if applicable
-                    status: (TenantStatus)tenantDbo.Status,
-                    domain: tenantDbo.Domain,
-                    subscriptionTier: tenantDbo.SubscriptionTier,
-                    brandingName: tenantDbo.BrandingName,
+                    id: tenantDatabaseDto.Id,
+                    name: tenantDatabaseDto.Name,
+                    connectionStringName: tenantDatabaseDto.ConnectionStringName,
+                    status: (TenantStatus)tenantDatabaseDto.Status,
+                    domain: tenantDatabaseDto.Domain,
+                    subscriptionTier: tenantDatabaseDto.SubscriptionTier,
+                    brandingName: tenantDatabaseDto.BrandingName,
                     logoUrl: logoUri,
-                    dataIsolationMode: (TenantDataIsolationMode)tenantDbo.DataIsolationMode,
+                    dataIsolationMode: (TenantDataIsolationMode)tenantDatabaseDto.DataIsolationMode,
                     enabledFeatures: enabledFeatures,
                     customProperties: customProperties,
-                    preferredLocale: tenantDbo.PreferredLocale,
-                    timeZoneId: tenantDbo.TimeZoneId,
-                    dataRegion: tenantDbo.DataRegion,
-                    parentTenantId: tenantDbo.ParentTenantId,
-                    createdAtUtc: tenantDbo.CreatedAtUtc,
-                    updatedAtUtc: tenantDbo.UpdatedAtUtc,
-                    concurrencyStamp: tenantDbo.ConcurrencyStamp
+                    preferredLocale: tenantDatabaseDto.PreferredLocale,
+                    timeZoneId: tenantDatabaseDto.TimeZoneId,
+                    dataRegion: tenantDatabaseDto.DataRegion,
+                    parentTenantId: tenantDatabaseDto.ParentTenantId,
+                    createdAtUtc: tenantDatabaseDto.CreatedAtUtc,
+                    updatedAtUtc: tenantDatabaseDto.UpdatedAtUtc,
+                    concurrencyStamp: tenantDatabaseDto.ConcurrencyStamp
                 );
 
                 _logger.LogDebug("Tenant found in database for identifier '{Identifier}'. Tenant ID: '{TenantId}', Status: '{TenantStatus}'.", identifier, tenantInfo.Id, tenantInfo.Status);
                 return tenantInfo;
             }
-            // Catch exceptions from the IDbConnectionFactory
-            catch (ConnectionStringNotFoundException ex) // More specific than TenantConfigurationException for this case
+           
+            catch (ConnectionStringNotFoundException ex) 
             {
                 Error error = new("Tenant.Store.Db.ConfigurationError", $"Configuration error for tenant metadata database: {ex.Message}");
                 _logger.LogCritical(ex, error.Description);
-                // This implies a fundamental setup issue for the store itself.
-                throw new TenantConfigurationException(error, ex); // Wrapping it as TenantConfigurationException as it affects the store's setup
+            
+                throw new TenantConfigurationException(error, ex); /
             }
             catch (UnsupportedDbProviderException ex)
             {
@@ -180,34 +155,31 @@ public class DatabaseTenantStore : ITenantStore
                 _logger.LogCritical(ex, error.Description);
                 throw new TenantConfigurationException(error, ex);
             }
-            catch (DbConnectionOpenException ex) // Specific exception for failure to open connection
+            catch (DbConnectionOpenException ex) 
             {
                 Error error = new("Tenant.Store.Db.Unavailable", $"Tenant metadata database is unavailable: {ex.Message}");
                 _logger.LogCritical(ex, error.Description);
-                // This indicates the store itself is unable to connect to its backend.
+ 
                 throw new TenantStoreUnavailableException(error, ex, $"ConnectionStringName: {_multiTenancyOptions.Store.ConnectionStringName}");
             }
-            // Catch exceptions from Dapper/DB interaction
-            catch (DbException ex) // Catches provider-specific exceptions from Dapper calls (e.g., SQL syntax error, table not found)
+            catch (DbException ex)
             {
                 Error error = new("Tenant.Store.Db.QueryFailed", $"Database query failed while retrieving tenant by identifier '{identifier}'.");
                 _logger.LogError(ex, error.Description);
                 throw new TenantStoreQueryFailedException(error, ex, $"Identifier: {identifier}");
             }
-            catch (System.Text.Json.JsonException jsonEx) // Catch deserialization errors for DTO properties
+            catch (JsonException jsonEx) 
             {
                 Error error = new("Tenant.Store.Db.DeserializationFailed", $"Failed to deserialize tenant data for identifier '{identifier}' from database response.");
                 _logger.LogError(jsonEx, error.Description);
-                // Assuming tenantDbo might be partially populated or null here.
-                // The individual property deserialization already logs warnings.
-                // This catch is more for a wholesale failure if JsonSerializer itself throws before specific property mapping.
-                throw new TenantDeserializationException(error, jsonEx, nameof(TenantDbo));
+
+                throw new TenantDeserializationException(error, jsonEx, nameof(DatabaseTenantDto));
             }
-            catch (Exception ex) // Catch-all for other unexpected errors
+            catch (Exception ex) 
             {
                 Error error = new("Tenant.Store.Db.UnexpectedError", $"An unexpected error occurred in DatabaseTenantStore while retrieving tenant by identifier '{identifier}'.");
                 _logger.LogError(ex, error.Description);
-                throw new TenantStoreException(error, ex); // Generic store exception
+                throw new TenantStoreException(error, ex); 
             }
         }
     }
