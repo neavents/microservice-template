@@ -12,7 +12,7 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 /// It differs from ConfigurationTenantStore which is read-only from IOptions.
 /// This store could allow adding/updating tenants at runtime if such methods were exposed.
 /// </summary>
-public class InMemoryTenantStore : ITenantStore
+public partial class InMemoryTenantStore : ITenantStore
 {
     private readonly ConcurrentDictionary<string, ITenantInfo> _tenantsByIdentifier;
     private readonly ILogger<InMemoryTenantStore> _logger;
@@ -33,20 +33,8 @@ public class InMemoryTenantStore : ITenantStore
                     _logger.LogWarning("Skipping null tenant or tenant with null/empty ID during InMemoryTenantStore initialization.");
                     continue;
                 }
-                // For InMemoryStore, the "identifier" used for lookup might be different from tenant.Id.
-                // For simplicity here, let's assume we need a way to map a lookup identifier to this tenant.
-                // This example will assume the tenant.Id is also the lookup identifier.
-                // A more complex InMemoryStore might take KeyValuePairs of <identifier, ITenantInfo>.
-                // For now, let's assume the identifier to lookup with is tenant.Id for simplicity.
-                // If a different lookup mechanism is needed (e.g. by domain), the AddOrUpdateTenant method would need to handle that.
 
-                // This example uses tenant.Id as the lookup identifier.
-                // If you resolve by domain, then the key should be domain, and ITenantInfo the value.
-                // For now, let's make a simplifying assumption that the 'identifier' passed to GetTenantByIdentifierAsync
-                // is one of the properties of ITenantInfo that we can check against, or it *is* the tenant.Id.
-                // Let's assume for this basic version, the identifier IS the tenant.Id.
-
-                if (!_tenantsByIdentifier.TryAdd(tenant.Id, tenant)) // Using tenant.Id as the key for simplicity
+                if (!_tenantsByIdentifier.TryAdd(tenant.Id, tenant))
                 {
                     _logger.LogWarning("Duplicate tenant ID '{TenantId}' encountered during InMemoryTenantStore initialization. The first entry was kept.", tenant.Id);
                 }

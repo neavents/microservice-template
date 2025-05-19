@@ -12,7 +12,7 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Interceptors
 /// Autofac interceptor for caching results of ITenantStore methods.
 /// Specifically targets GetTenantByIdentifierAsync.
 /// </summary>
-public class CachingTenantStoreInterceptor : IInterceptor
+public partial class CachingTenantStoreInterceptor : IInterceptor
 {
     private readonly IMemoryCache _memoryCache;
     private readonly CacheOptions _cacheOptions; // Directly injected CacheOptions
@@ -53,7 +53,6 @@ public class CachingTenantStoreInterceptor : IInterceptor
             return;
         }
 
-        // We are primarily interested in caching GetTenantByIdentifierAsync
         if (invocation.Method.Name == nameof(ITenantStore.GetTenantByIdentifierAsync) &&
             invocation.Arguments.Length == 1 &&
             invocation.Arguments[0] is string identifier &&
@@ -62,18 +61,15 @@ public class CachingTenantStoreInterceptor : IInterceptor
             string cacheKey = $"TenantInfoByIdentifier_{identifier}";
             _logger.LogTrace("Intercepting {MethodName} for identifier '{Identifier}'. Cache key: '{CacheKey}'.", invocation.Method.Name, identifier, cacheKey);
 
-            // Try to get from cache
-            // Note: IMemoryCache.TryGetValue is synchronous.
-            // For async methods, the Task itself is often cached.
             if (_memoryCache.TryGetValue(cacheKey, out object? cachedResult))
             {
                 _logger.LogDebug("Tenant '{Identifier}' found in cache for method {MethodName}. Cache key: '{CacheKey}'.", identifier, invocation.Method.Name, cacheKey);
-                invocation.ReturnValue = cachedResult; // This should be Task<ITenantInfo?>
+                invocation.ReturnValue = cachedResult;
                 return;
             }
 
             _logger.LogDebug("Tenant '{Identifier}' not found in cache for method {MethodName}. Proceeding with actual call. Cache key: '{CacheKey}'.", identifier, invocation.Method.Name, cacheKey);
-            invocation.Proceed(); // Calls the actual ITenantStore.GetTenantByIdentifierAsync
+            invocation.Proceed();
 
             // Post-processing for async methods:
             // The ReturnValue will be a Task<ITenantInfo?>. We need to await it (or attach a continuation)

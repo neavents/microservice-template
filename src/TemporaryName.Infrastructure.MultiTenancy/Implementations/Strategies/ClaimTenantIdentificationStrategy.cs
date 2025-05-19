@@ -10,7 +10,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Strategies;
 
-public class ClaimTenantIdentificationStrategy : ITenantIdentificationStrategy
+public partial class ClaimTenantIdentificationStrategy : ITenantIdentificationStrategy
     {
         private readonly string _tenantIdClaimType;
         private readonly ILogger<ClaimTenantIdentificationStrategy> _logger;

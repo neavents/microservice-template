@@ -10,7 +10,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Strategies;
 
-public class HttpHeaderTenantIdentificationStrategy : ITenantIdentificationStrategy
+public partial class HttpHeaderTenantIdentificationStrategy : ITenantIdentificationStrategy
     {
         private readonly string _headerName;
         private readonly ILogger<HttpHeaderTenantIdentificationStrategy> _logger;

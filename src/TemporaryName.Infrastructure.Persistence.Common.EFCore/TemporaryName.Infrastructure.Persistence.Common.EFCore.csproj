@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../TemporaryName.Domain/TemporaryName.Domain.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.MultiTenancy/TemporaryName.Infrastructure.MultiTenancy.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Outbox.EFCore/TemporaryName.Infrastructure.Outbox.EFCore.csproj" />
   </ItemGroup>
 

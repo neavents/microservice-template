@@ -15,7 +15,7 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Providers;
 /// Provides instances of <see cref="ITenantStore"/> based on configuration,
 /// potentially wrapping them with caching.
 /// </summary>
-public class TenantStoreProvider : ITenantStoreProvider
+public partial class TenantStoreProvider : ITenantStoreProvider
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<TenantStoreProvider> _logger;

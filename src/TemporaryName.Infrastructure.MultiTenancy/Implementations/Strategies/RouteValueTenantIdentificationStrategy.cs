@@ -10,7 +10,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Strategies;
 
-public class RouteValueTenantIdentificationStrategy : ITenantIdentificationStrategy
+public partial class RouteValueTenantIdentificationStrategy : ITenantIdentificationStrategy
     {
         private readonly string _routeValueKey;
         private readonly ILogger<RouteValueTenantIdentificationStrategy> _logger;

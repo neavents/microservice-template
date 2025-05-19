@@ -5,7 +5,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Configuration;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations;
 
-public class TenantContext : ITenantContext
+public partial class TenantContext : ITenantContext
 {
     private static readonly AsyncLocal<ITenantInfo?> _currentTenantAsyncLocal = new();
     private readonly ILogger<TenantContext> _logger;

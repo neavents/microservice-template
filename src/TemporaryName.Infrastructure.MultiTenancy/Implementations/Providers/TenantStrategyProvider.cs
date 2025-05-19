@@ -13,7 +13,7 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Providers;
 /// Provides instances of <see cref="ITenantIdentificationStrategy"/> based on configuration.
 /// This class acts as a factory for tenant identification strategies.
 /// </summary>
-public class TenantStrategyProvider : ITenantStrategyProvider
+public partial class TenantStrategyProvider : ITenantStrategyProvider
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<TenantStrategyProvider> _logger;

@@ -15,7 +15,7 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 /// An <see cref="ITenantStore"/> implementation that retrieves tenant information
 /// from a remote HTTP service.
 /// </summary>
-public class RemoteHttpTenantStore : ITenantStore
+public partial class RemoteHttpTenantStore : ITenantStore
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<RemoteHttpTenantStore> _logger;
@@ -76,8 +76,6 @@ public class RemoteHttpTenantStore : ITenantStore
             return null;
         }
 
-        // Construct the request URI. Example: {ServiceEndpoint}/tenants/{identifier}
-        // Ensure identifier is URL-encoded if it can contain special characters.
         string requestUri = $"{_multiTenancyOptions.Store.ServiceEndpoint!.TrimEnd('/')}/resolve/{Uri.EscapeDataString(identifier)}";
 
         try
@@ -98,8 +96,7 @@ public class RemoteHttpTenantStore : ITenantStore
                 string responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 Error error = new("Tenant.Store.Remote.RequestFailed", $"Remote tenant service request failed with status code {response.StatusCode} for identifier '{identifier}'. URI: {requestUri}. Response: {responseContent.Substring(0, Math.Min(responseContent.Length, 500))}");
                 _logger.LogError(error.Description);
-                // This could be TenantStoreUnavailableException if it's a server error (5xx)
-                // or TenantStoreQueryFailedException if it's a client error (4xx other than 404) indicating a bad request to the store.
+
                 throw new TenantStoreQueryFailedException(error, $"Identifier: {identifier}, URI: {requestUri}, Status: {response.StatusCode}");
             }
 

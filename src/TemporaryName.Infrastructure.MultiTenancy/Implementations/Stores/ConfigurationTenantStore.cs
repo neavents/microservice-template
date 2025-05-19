@@ -9,7 +9,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 
-public class ConfigurationTenantStore : ITenantStore
+public partial class ConfigurationTenantStore : ITenantStore
     {
         private readonly IReadOnlyDictionary<string, ITenantInfo> _tenantsByIdentifier;
         private readonly ILogger<ConfigurationTenantStore> _logger;

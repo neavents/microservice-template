@@ -6,7 +6,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Strategies;
 
-public class HostHeaderTenantIdentificationStrategy : ITenantIdentificationStrategy
+public partial class HostHeaderTenantIdentificationStrategy : ITenantIdentificationStrategy
 {
     private readonly ILogger<HostHeaderTenantIdentificationStrategy> _logger;
     // Could add an option to specify if the port should be included or excluded,

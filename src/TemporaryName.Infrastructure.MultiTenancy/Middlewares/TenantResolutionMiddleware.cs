@@ -11,7 +11,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Middlewares;
 
-public class TenantResolutionMiddleware
+public partial class TenantResolutionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantResolutionMiddleware> _logger;

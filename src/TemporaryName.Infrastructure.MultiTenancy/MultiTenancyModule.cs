@@ -20,49 +20,55 @@ namespace TemporaryName.Infrastructure.MultiTenancy;
 /// have already been registered with IServiceCollection (e.g., via the AddMultiTenancy extension method).
 /// This module enhances the existing ITenantStore registration with caching if enabled.
 /// </summary>
-public class MultiTenancyModule : Module
+public partial class MultiTenancyModule : Module
 {
+    ILogger? _logger;
     public MultiTenancyModule() { }
 
     protected override void Load(ContainerBuilder builder)
     {
-        var diagnosticLogger = GetDiagnosticsLogger(builder);
-        diagnosticLogger.LogInformation("[Autofac Module] MultiTenancyModule loading. Will attempt to enhance ITenantStore with caching if enabled.");
+        EnsureLoggerInitialized();
+
+        LogModuleState(_logger, nameof(MultiTenancyModule), "loading", $"Will attempt to enhance {nameof(ITenantStore)} with caching if enabled.");
 
         builder.RegisterType<CachingTenantStoreInterceptor>()
                .AsSelf() // Register as self to be resolved by type by the pipeline
                .IfNotRegistered(typeof(CachingTenantStoreInterceptor))
                .InstancePerLifetimeScope(); // Interceptor can be scoped
-        diagnosticLogger.LogDebug("[Autofac Module] CachingTenantStoreInterceptor registered.");
+        
+        LogRegistered(_logger, nameof(CachingTenantStoreInterceptor));
 
         builder.RegisterDecorator<ITenantStore>(
             (c, _, inner) =>
             {
+                EnsureLoggerInitialized();
+
                 var options = c.Resolve<MultiTenancyOptions>();
                 if (!options.Store.Cache.Enabled)
                 {
-                    diagnosticLogger.LogDebug("[Autofac Module] Tenant store caching is disabled. Returning undecorated ITenantStore.");
-                    return inner; // Return the original undecorated store
-                }
+                    LogCachingState(_logger, "disabled", $"Returning undecorated {nameof(ITenantStore)}.");
 
-                diagnosticLogger.LogDebug("[Autofac Module] Tenant store caching is enabled. Decorating ITenantStore with CachingTenantStoreInterceptor.");
+                    return inner;
+                }
+                
+                LogCachingState(_logger, "enabled", $"Decorating {nameof(ITenantStore)} with {nameof(CachingTenantStoreInterceptor)}.");
+
                 var interceptor = c.Resolve<CachingTenantStoreInterceptor>();
                 var proxyGenerator = new ProxyGenerator();
+
                 return proxyGenerator.CreateInterfaceProxyWithTargetInterface<ITenantStore>(inner, interceptor);
             });
 
-        diagnosticLogger.LogInformation("[Autofac Module] MultiTenancyModule loaded. ITenantStore is configured for potential interception.");
+        LogModuleState(_logger, nameof(MultiTenancyModule), "loaded", $"{nameof(ITenantStore)} is configured for potantial interception");
     }
 
-    private ILogger GetDiagnosticsLogger(ContainerBuilder builder)
+    private void EnsureLoggerInitialized()
     {
-        ILogger logger = null!;
-        builder.RegisterBuildCallback(cr =>
+        if (_logger is null)
         {
-
-        });
-
-        using var tempLoggerFactory = LoggerFactory.Create(lb => lb.AddConsole().SetMinimumLevel(LogLevel.Debug));
-        return tempLoggerFactory.CreateLogger<MultiTenancyModule>();
+            using var tempLoggerFactory = LoggerFactory.Create(lb => lb.AddConsole().SetMinimumLevel(LogLevel.Debug));
+            _logger = tempLoggerFactory.CreateLogger<MultiTenancyModule>();
+        }
     }
+    
 }

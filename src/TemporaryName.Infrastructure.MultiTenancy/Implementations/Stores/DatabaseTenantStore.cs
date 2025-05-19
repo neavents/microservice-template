@@ -13,7 +13,7 @@ using TemporaryName.Infrastructure.MultiTenancy.Settings;
 
 namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 
-public class DatabaseTenantStore : ITenantStore
+public partial class DatabaseTenantStore : ITenantStore
     {
         private readonly IDbConnectionFactory _dbConnectionFactory;
         private readonly ILogger<DatabaseTenantStore> _logger;
@@ -147,7 +147,7 @@ public class DatabaseTenantStore : ITenantStore
                 Error error = new("Tenant.Store.Db.ConfigurationError", $"Configuration error for tenant metadata database: {ex.Message}");
                 _logger.LogCritical(ex, error.Description);
             
-                throw new TenantConfigurationException(error, ex); /
+                throw new TenantConfigurationException(error, ex); 
             }
             catch (UnsupportedDbProviderException ex)
             {
