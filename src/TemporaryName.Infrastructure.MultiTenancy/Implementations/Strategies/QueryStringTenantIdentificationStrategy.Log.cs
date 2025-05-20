@@ -7,8 +7,6 @@ public partial class QueryStringTenantIdentificationStrategy
 {
     private const int ClassId = 70;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtMissingQueryParameterName = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtHttpContextRequestNull = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -17,13 +15,11 @@ public partial class QueryStringTenantIdentificationStrategy
     public const int EvtQueryParamFoundButEmpty = BaseEventId + (5 * Logging.IncrementPerLog);
     public const int EvtQueryParamNotFound = BaseEventId + (6 * Logging.IncrementPerLog);
 
-    // LoggerMessage Definitions
-
     [LoggerMessage(
         EventId = EvtMissingQueryParameterName,
         Level = LogLevel.Critical,
         Message = "QueryStringTenantIdentificationStrategy requires ParameterName (the query string key) to be configured. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMissingQueryParameterName(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogMissingQueryParameterName(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtInitializationSuccess,

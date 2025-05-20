@@ -7,8 +7,6 @@ public partial class HttpHeaderTenantIdentificationStrategy
 {
     private const int ClassId = 65;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtMissingHeaderNameParameter = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtHttpContextRequestNull = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -18,13 +16,11 @@ public partial class HttpHeaderTenantIdentificationStrategy
     public const int EvtHeaderFoundButEmpty = BaseEventId + (6 * Logging.IncrementPerLog);
     public const int EvtHeaderNotFound = BaseEventId + (7 * Logging.IncrementPerLog);
 
-    // LoggerMessage Definitions
-
     [LoggerMessage(
         EventId = EvtMissingHeaderNameParameter,
         Level = LogLevel.Critical,
         Message = "HttpHeaderTenantIdentificationStrategy requires ParameterName (the HTTP header name) to be configured. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMissingHeaderNameParameter(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogMissingHeaderNameParameter(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtInitializationSuccess,

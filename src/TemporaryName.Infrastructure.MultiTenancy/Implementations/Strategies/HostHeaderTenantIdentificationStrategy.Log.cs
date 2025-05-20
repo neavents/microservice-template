@@ -7,16 +7,12 @@ public partial class HostHeaderTenantIdentificationStrategy
 {
     private const int ClassId = 60;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtParameterNameProvidedButUnused = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtHttpContextRequestNull = BaseEventId + (2 * Logging.IncrementPerLog);
     public const int EvtHostHeaderMissingOrEmpty = BaseEventId + (3 * Logging.IncrementPerLog);
     public const int EvtHostIdentifierEmptyAfterSplit = BaseEventId + (4 * Logging.IncrementPerLog);
     public const int EvtTenantIdentifiedFromHost = BaseEventId + (5 * Logging.IncrementPerLog);
-
-    // LoggerMessage Definitions
 
     [LoggerMessage(
         EventId = EvtParameterNameProvidedButUnused,

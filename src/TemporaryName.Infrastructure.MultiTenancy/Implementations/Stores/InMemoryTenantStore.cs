@@ -30,34 +30,34 @@ public partial class InMemoryTenantStore : ITenantStore
             {
                 if (tenant == null || string.IsNullOrWhiteSpace(tenant.Id))
                 {
-                    _logger.LogWarning("Skipping null tenant or tenant with null/empty ID during InMemoryTenantStore initialization.");
+                    LogSkippingNullTenantOnInit(_logger);
                     continue;
                 }
 
                 if (!_tenantsByIdentifier.TryAdd(tenant.Id, tenant))
                 {
-                    _logger.LogWarning("Duplicate tenant ID '{TenantId}' encountered during InMemoryTenantStore initialization. The first entry was kept.", tenant.Id);
+                    LogDuplicateTenantIdOnInit(_logger, tenant.Id);
                 }
             }
         }
-        _logger.LogInformation("InMemoryTenantStore initialized with {TenantCount} tenants.", _tenantsByIdentifier.Count);
+        LogInitializationSuccess(_logger, _tenantsByIdentifier.Count);
     }
 
     public Task<ITenantInfo?> GetTenantByIdentifierAsync(string id)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogDebug("InMemoryTenantStore.GetTenantByIdentifierAsync called with null or empty identifier.");
+            LogGetTenantCalledWithNullOrEmptyId(_logger);
             return Task.FromResult<ITenantInfo?>(null);
         }
 
         if (_tenantsByIdentifier.TryGetValue(id, out ITenantInfo? tenantInfo))
         {
-            _logger.LogDebug("Tenant found in InMemoryTenantStore for identifier '{Identifier}'. Tenant ID: '{TenantId}', Status: '{TenantStatus}'.", id, tenantInfo.Id, tenantInfo.Status);
-            return Task.FromResult(tenantInfo);
+            LogTenantFoundByIdentifier(_logger, id, tenantInfo.Id, tenantInfo.Status);
+            return Task.FromResult<ITenantInfo?>(tenantInfo);
         }
 
-        _logger.LogDebug("No tenant found in InMemoryTenantStore for identifier '{Identifier}'.", id);
+        LogTenantNotFoundByIdentifier(_logger, id);
         return Task.FromResult<ITenantInfo?>(null);
     }
 
@@ -72,7 +72,8 @@ public partial class InMemoryTenantStore : ITenantStore
         // TenantInfo constructor already validates tenantInfo.Id
 
         _tenantsByIdentifier.AddOrUpdate(identifierForLookup, tenantInfo, (key, existingVal) => tenantInfo);
-        _logger.LogInformation("Tenant with lookup identifier '{IdentifierForLookup}' (Tenant ID: '{TenantId}') was added/updated in InMemoryTenantStore.", identifierForLookup, tenantInfo.Id);
+
+        LogTenantAddedOrUpdated(_logger, identifierForLookup, tenantInfo.Id);
         return true;
     }
 
@@ -84,10 +85,10 @@ public partial class InMemoryTenantStore : ITenantStore
         ArgumentException.ThrowIfNullOrWhiteSpace(identifierForLookup, nameof(identifierForLookup));
         if (_tenantsByIdentifier.TryRemove(identifierForLookup, out ITenantInfo? removedTenant))
         {
-            _logger.LogInformation("Tenant with lookup identifier '{IdentifierForLookup}' (Tenant ID: '{TenantId}') was removed from InMemoryTenantStore.", identifierForLookup, removedTenant?.Id);
+            LogTenantRemoved(_logger, identifierForLookup, removedTenant.Id);
             return true;
         }
-        _logger.LogWarning("Attempted to remove tenant with lookup identifier '{IdentifierForLookup}', but it was not found in InMemoryTenantStore.", identifierForLookup);
+        LogRemoveTenantNotFound(_logger, identifierForLookup);
         return false;
     }
 }

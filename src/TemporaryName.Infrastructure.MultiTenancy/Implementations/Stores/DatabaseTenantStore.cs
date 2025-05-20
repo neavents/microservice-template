@@ -37,29 +37,32 @@ public partial class DatabaseTenantStore : ITenantStore
             if (_multiTenancyOptions == null)
             {
                 Error error = new("MultiTenancy.Configuration.OptionsAccessorValueNull.DbStore", "IOptions<MultiTenancyOptions>.Value is null. DatabaseTenantStore cannot be initialized.");
-                _logger.LogCritical(error.Description);
-                throw new TenantConfigurationException(error.Description, error);
+
+                LogOptionsAccessorValueNull(_logger, error.Code, error.Description);
+                throw new TenantConfigurationException(error.Description!, error);
             }
 
             if (_multiTenancyOptions.Store.Type != TenantStoreType.Database)
             {
-                _logger.LogWarning("DatabaseTenantStore is registered, but MultiTenancyOptions.Store.Type is '{StoreType}'. This store might not be used as intended by the configuration.", _multiTenancyOptions.Store.Type);
+                LogStoreTypeMismatch(_logger, _multiTenancyOptions.Store.Type);
             }
 
             if (string.IsNullOrWhiteSpace(_multiTenancyOptions.Store.ConnectionStringName))
             {
                 Error error = new("MultiTenancy.Configuration.DbStore.MissingConnectionStringName", $"DatabaseTenantStore requires MultiTenancyOptions.Store.ConnectionStringName to be configured for the tenant metadata database.");
-                _logger.LogCritical(error.Description);
-                throw new TenantConfigurationException(error.Description, error);
+
+                LogMissingConnectionStringName(_logger, error.Code, error.Description);
+                throw new TenantConfigurationException(error.Description!, error);
             }
-            _logger.LogInformation("DatabaseTenantStore initialized. Will use connection string name '{ConnectionStringName}' for tenant metadata via IDbConnectionFactory.", _multiTenancyOptions.Store.ConnectionStringName);
+
+            LogInitializationSuccess(_logger, _multiTenancyOptions.Store.ConnectionStringName);
         }
 
-        public async Task<ITenantInfo?> GetTenantByIdentifierAsync(string identifier)
+        public async Task<ITenantInfo?> GetTenantByIdentifierAsync(string id)
         {
-            if (string.IsNullOrWhiteSpace(identifier))
+            if (string.IsNullOrWhiteSpace(id))
             {
-                _logger.LogDebug("DatabaseTenantStore.GetTenantByIdentifierAsync called with null or empty identifier.");
+                LogGetTenantCalledWithNullOrEmptyId(_logger);
                 return null;
             }
 
@@ -76,11 +79,11 @@ public partial class DatabaseTenantStore : ITenantStore
                 // _multiTenancyOptions.Store.ConnectionStringName! ensures non-null, checked in constructor.
                 await using DbConnection connection = await _dbConnectionFactory.CreateOpenConnectionAsync(_multiTenancyOptions.Store.ConnectionStringName!).ConfigureAwait(false);
 
-                DatabaseTenantDto? tenantDatabaseDto = await connection.QuerySingleOrDefaultAsync<DatabaseTenantDto>(sql, new { Identifier = identifier });
+                DatabaseTenantDto? tenantDatabaseDto = await connection.QuerySingleOrDefaultAsync<DatabaseTenantDto>(sql, new { Identifier = id });
 
                 if (tenantDatabaseDto == null)
                 {
-                    _logger.LogDebug("No tenant found in database for identifier '{Identifier}'.", identifier);
+                    LogNoTenantFoundInDbByIdentifier(_logger, id);
                     return null;
                 }
 
@@ -89,7 +92,7 @@ public partial class DatabaseTenantStore : ITenantStore
                     (!Uri.TryCreate(tenantDatabaseDto.LogoUrl, UriKind.Absolute, out logoUri) ||
                      (logoUri?.Scheme != Uri.UriSchemeHttp && logoUri?.Scheme != Uri.UriSchemeHttps)))
                 {
-                    _logger.LogWarning("Tenant '{TenantId}' from DB: Invalid or non-HTTP/HTTPS LogoUrl '{LogoUrl}'. It will be ignored.", tenantDatabaseDto.Id, tenantDatabaseDto.LogoUrl);
+                    LogInvalidLogoUrl(_logger, tenantDatabaseDto.Id, tenantDatabaseDto.LogoUrl);
                     logoUri = null;
                 }
 
@@ -99,9 +102,9 @@ public partial class DatabaseTenantStore : ITenantStore
                     try { enabledFeatures = JsonSerializer.Deserialize<HashSet<string>>(tenantDatabaseDto.EnabledFeaturesJson, _jsonSerializerOptions); }
                     catch (JsonException ex)
                     {
-                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize EnabledFeaturesJson. Value: '{JsonValue}'", tenantDatabaseDto.Id, tenantDatabaseDto.EnabledFeaturesJson);
+                        LogDeserializeEnabledFeaturesJsonFailed(_logger, tenantDatabaseDto.Id, tenantDatabaseDto.EnabledFeaturesJson, ex);
                         // Error error = new("Tenant.Store.Db.Deserialization.EnabledFeatures", $"Failed to deserialize EnabledFeatures for tenant {tenantDbo.Id}.");
-                        // No throw, proceed with empty.
+                        // throw;
                     }
                 }
 
@@ -111,9 +114,9 @@ public partial class DatabaseTenantStore : ITenantStore
                      try { customProperties = JsonSerializer.Deserialize<Dictionary<string, string>>(tenantDatabaseDto.CustomPropertiesJson, _jsonSerializerOptions); }
                     catch (JsonException ex)
                     {
-                        _logger.LogWarning(ex, "Tenant '{TenantId}' from DB: Failed to deserialize CustomPropertiesJson. Value: '{JsonValue}'", tenantDatabaseDto.Id, tenantDatabaseDto.CustomPropertiesJson);
+                        LogDeserializeCustomPropertiesJsonFailed(_logger, tenantDatabaseDto.Id, tenantDatabaseDto.CustomPropertiesJson, ex);
                         // Error error = new("Tenant.Store.Db.Deserialization.CustomProperties", $"Failed to deserialize CustomProperties for tenant {tenantDbo.Id}.");
-                        // No throw, proceed with empty.
+                        // throw;
                     }
                 }
 
@@ -138,47 +141,50 @@ public partial class DatabaseTenantStore : ITenantStore
                     concurrencyStamp: tenantDatabaseDto.ConcurrencyStamp
                 );
 
-                _logger.LogDebug("Tenant found in database for identifier '{Identifier}'. Tenant ID: '{TenantId}', Status: '{TenantStatus}'.", identifier, tenantInfo.Id, tenantInfo.Status);
+                LogTenantFoundInDbByIdentifier(_logger, id, tenantInfo.Id, tenantInfo.Status);
                 return tenantInfo;
             }
            
             catch (ConnectionStringNotFoundException ex) 
             {
                 Error error = new("Tenant.Store.Db.ConfigurationError", $"Configuration error for tenant metadata database: {ex.Message}");
-                _logger.LogCritical(ex, error.Description);
-            
+                LogDbConfigErrorConnectionStringNotFound(_logger, ex.Message, error.Code, error.Description, ex);
+        
                 throw new TenantConfigurationException(error, ex); 
             }
             catch (UnsupportedDbProviderException ex)
             {
                 Error error = new("Tenant.Store.Db.UnsupportedProvider", $"Unsupported DB provider for tenant metadata database: {ex.Message}");
-                _logger.LogCritical(ex, error.Description);
+                LogDbConfigErrorUnsupportedProvider(_logger, ex.Message, error.Code, error.Description, ex);
+
                 throw new TenantConfigurationException(error, ex);
             }
             catch (DbConnectionOpenException ex) 
             {
                 Error error = new("Tenant.Store.Db.Unavailable", $"Tenant metadata database is unavailable: {ex.Message}");
-                _logger.LogCritical(ex, error.Description);
+                LogDbUnavailableConnectionOpenFailed(_logger, ex.Message, error.Code, error.Description, ex);
  
                 throw new TenantStoreUnavailableException(error, ex, $"ConnectionStringName: {_multiTenancyOptions.Store.ConnectionStringName}");
             }
             catch (DbException ex)
             {
-                Error error = new("Tenant.Store.Db.QueryFailed", $"Database query failed while retrieving tenant by identifier '{identifier}'.");
-                _logger.LogError(ex, error.Description);
-                throw new TenantStoreQueryFailedException(error, ex, $"Identifier: {identifier}");
+                Error error = new("Tenant.Store.Db.QueryFailed", $"Database query failed while retrieving tenant by identifier '{id}'.");
+                LogDbQueryFailed(_logger, id, error.Code, error.Description, ex);
+                
+                throw new TenantStoreQueryFailedException(error, ex, $"Identifier: {id}");
             }
             catch (JsonException jsonEx) 
             {
-                Error error = new("Tenant.Store.Db.DeserializationFailed", $"Failed to deserialize tenant data for identifier '{identifier}' from database response.");
-                _logger.LogError(jsonEx, error.Description);
+                Error error = new("Tenant.Store.Db.DeserializationFailed", $"Failed to deserialize tenant data for identifier '{id}' from database response.");
+                LogDbDeserializationFailed(_logger, id, error.Code, error.Description, jsonEx);
 
                 throw new TenantDeserializationException(error, jsonEx, nameof(DatabaseTenantDto));
             }
             catch (Exception ex) 
             {
-                Error error = new("Tenant.Store.Db.UnexpectedError", $"An unexpected error occurred in DatabaseTenantStore while retrieving tenant by identifier '{identifier}'.");
-                _logger.LogError(ex, error.Description);
+                Error error = new("Tenant.Store.Db.UnexpectedError", $"An unexpected error occurred in DatabaseTenantStore while retrieving tenant by identifier '{id}'.");
+                LogDbUnexpectedError(_logger, id, error.Code, error.Description, ex);
+
                 throw new TenantStoreException(error, ex); 
             }
         }

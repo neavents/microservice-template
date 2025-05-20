@@ -6,11 +6,8 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Stores;
 
 public partial class ConfigurationTenantStore
 {
-    // Define a ClassId for ConfigurationTenantStore.
-    // Ensure '35' is unique and recorded in your central EventId registry.
     private const int ClassId = 35;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
     public const int EvtOptionsAccessorValueNull = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtStoreTypeMismatch = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtTenantsCollectionNull = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -27,12 +24,11 @@ public partial class ConfigurationTenantStore
     public const int EvtTenantFoundByIdentifier = BaseEventId + (13 * Logging.IncrementPerLog);
     public const int EvtTenantNotFoundByIdentifier = BaseEventId + (14 * Logging.IncrementPerLog);
 
-
     [LoggerMessage(
         EventId = EvtOptionsAccessorValueNull,
         Level = LogLevel.Critical,
         Message = "IOptions<MultiTenancyOptions>.Value is null. MultiTenancy configuration is missing or malformed. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogOptionsAccessorValueNull(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogOptionsAccessorValueNull(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtStoreTypeMismatch,
@@ -44,7 +40,7 @@ public partial class ConfigurationTenantStore
         EventId = EvtTenantsCollectionNull,
         Level = LogLevel.Error,
         Message = "MultiTenancyOptions.Tenants collection is null, but Store.Type is '{StoreType}'. No tenants can be loaded. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogTenantsCollectionNull(ILogger logger, TenantStoreType storeType, string errorCode, string errorDescription);
+    public static partial void LogTenantsCollectionNull(ILogger logger, TenantStoreType storeType, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtTenantsCollectionEmpty,
@@ -68,7 +64,7 @@ public partial class ConfigurationTenantStore
         EventId = EvtEntryMissingRequiredId,
         Level = LogLevel.Error,
         Message = "Tenant configuration entry for identifier '{Identifier}' is missing the required 'Id' property. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogEntryMissingRequiredId(ILogger logger, string identifier, string errorCode, string errorDescription);
+    public static partial void LogEntryMissingRequiredId(ILogger logger, string identifier, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtInvalidLogoUrl,
@@ -86,13 +82,13 @@ public partial class ConfigurationTenantStore
         EventId = EvtTenantInfoCreationArgumentError,
         Level = LogLevel.Error,
         Message = "Failed to create TenantInfo object for identifier '{Identifier}' from configuration. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogTenantInfoCreationArgumentError(ILogger logger, string identifier, string errorCode, string errorDescription, Exception ex);
+    public static partial void LogTenantInfoCreationArgumentError(ILogger logger, string identifier, string errorCode, string? errorDescription, Exception ex);
 
     [LoggerMessage(
         EventId = EvtUnexpectedTenantEntryProcessingError,
         Level = LogLevel.Critical,
         Message = "An unexpected error occurred while processing tenant configuration for identifier '{Identifier}'. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogUnexpectedTenantEntryProcessingError(ILogger logger, string identifier, string errorCode, string errorDescription, Exception ex);
+    public static partial void LogUnexpectedTenantEntryProcessingError(ILogger logger, string identifier, string errorCode, string? errorDescription, Exception ex);
 
     [LoggerMessage(
         EventId = EvtInitializationSuccess,

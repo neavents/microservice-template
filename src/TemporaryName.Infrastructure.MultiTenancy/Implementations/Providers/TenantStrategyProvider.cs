@@ -30,8 +30,7 @@ public partial class TenantStrategyProvider : ITenantStrategyProvider
     {
         ArgumentNullException.ThrowIfNull(strategyOptions, nameof(strategyOptions));
 
-        _logger.LogDebug("Attempting to get strategy for type: {StrategyType}, ParameterName: '{ParameterName}', Order: {Order}",
-            strategyOptions.Type, strategyOptions.ParameterName, strategyOptions.Order);
+        LogAttemptingToGetStrategy(_logger, strategyOptions.Type, strategyOptions.ParameterName, strategyOptions.Order);
 
         try
         {
@@ -64,20 +63,22 @@ public partial class TenantStrategyProvider : ITenantStrategyProvider
                     );
                 default:
                     Error error = new("TenantResolution.Strategy.UnknownType", $"Unsupported tenant resolution strategy type: {strategyOptions.Type}.");
-                    _logger.LogError(error.Description);
-                    throw new TenantConfigurationException(error.Description, error);
+
+                    LogUnsupportedStrategyType(_logger, strategyOptions.Type, error.Code, error.Description);
+                    throw new TenantConfigurationException(error.Description!, error);
             }
         }
         catch (InvalidTenantResolutionStrategyParameterException ex)
         {
-            _logger.LogError(ex, "Failed to create tenant strategy due to invalid parameters for type {StrategyType}.", strategyOptions.Type);
+            LogStrategyCreationFailedInvalidParams(_logger, strategyOptions.Type, ex);
             throw;
         }
         catch (Exception ex)
         {
             Error error = new("TenantResolution.Strategy.InstantiationFailed", $"Failed to instantiate tenant resolution strategy of type {strategyOptions.Type}. See inner exception for details.");
-            _logger.LogCritical(ex, error.Description);
-            throw new TenantConfigurationException(error.Description, error, ex);
+
+            LogStrategyInstantiationFailed(_logger, strategyOptions.Type, error.Code, error.Description, ex);
+            throw new TenantConfigurationException(error.Description!, error, ex);
         }
     }
 }

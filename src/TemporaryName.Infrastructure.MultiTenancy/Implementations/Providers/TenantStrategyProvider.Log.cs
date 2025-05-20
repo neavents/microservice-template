@@ -8,7 +8,6 @@ public partial class TenantStrategyProvider
 {
     private const int ClassId = 40;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
     public const int EvtAttemptingToGetStrategy = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtUnsupportedStrategyType = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtStrategyCreationFailedInvalidParams = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -24,7 +23,7 @@ public partial class TenantStrategyProvider
         EventId = EvtUnsupportedStrategyType,
         Level = LogLevel.Error, // Matched to original LogError call
         Message = "Unsupported tenant resolution strategy type configured: {StrategyType}. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogUnsupportedStrategyType(ILogger logger, string strategyType, string errorCode, string errorDescription);
+    public static partial void LogUnsupportedStrategyType(ILogger logger, TenantResolutionStrategyType strategyType, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtStrategyCreationFailedInvalidParams,
@@ -36,6 +35,6 @@ public partial class TenantStrategyProvider
         EventId = EvtStrategyInstantiationFailed,
         Level = LogLevel.Critical,
         Message = "Failed to instantiate tenant resolution strategy of type {StrategyType}. Error Code: {ErrorCode}, Details: {ErrorDescription}. See inner exception.")]
-    public static partial void LogStrategyInstantiationFailed(ILogger logger, string strategyType, string errorCode, string errorDescription, Exception ex);
+    public static partial void LogStrategyInstantiationFailed(ILogger logger, TenantResolutionStrategyType strategyType, string errorCode, string? errorDescription, Exception ex);
 }
 

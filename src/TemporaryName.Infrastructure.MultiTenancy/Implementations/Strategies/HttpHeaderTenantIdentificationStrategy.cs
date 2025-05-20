@@ -24,11 +24,13 @@ public partial class HttpHeaderTenantIdentificationStrategy : ITenantIdentificat
             if (string.IsNullOrWhiteSpace(strategyOptions.ParameterName))
             {
                 Error error = new("TenantResolution.Strategy.HttpHeader.MissingParameterName", "HttpHeaderTenantIdentificationStrategy requires ParameterName (the HTTP header name) to be configured in TenantResolutionStrategyOptions.");
-                _logger.LogCritical(error.Description);
+                LogMissingHeaderNameParameter(_logger, error.Code, error.Description);
+                
                 throw new InvalidTenantResolutionStrategyParameterException(error, nameof(TenantResolutionStrategyType.HttpHeader), nameof(strategyOptions.ParameterName));
             }
             _headerName = strategyOptions.ParameterName;
-            _logger.LogInformation("HttpHeaderTenantIdentificationStrategy initialized. Will look for tenant identifier in HTTP header: '{HeaderName}'.", _headerName);
+
+            LogInitializationSuccess(_logger, _headerName);
         }
 
     public int Priority => throw new NotImplementedException();
@@ -36,14 +38,14 @@ public partial class HttpHeaderTenantIdentificationStrategy : ITenantIdentificat
     public Task<string?> IdentifyTenantAsync(HttpContext context)
         {
             ArgumentNullException.ThrowIfNull(context, nameof(context));
-            if (context.Request == null)
+            if (context.Request is null)
             {
-                 _logger.LogWarning("HttpContext.Request is null. Cannot identify tenant using HttpHeader strategy.");
+                 LogHttpContextRequestNull(_logger);
                  return Task.FromResult<string?>(null);
             }
-            if (context.Request.Headers == null) 
+            if (context.Request.Headers is null) 
             {
-                _logger.LogWarning("HttpContext.Request.Headers is null. Cannot identify tenant using HttpHeader strategy.");
+                LogHttpContextRequestHeadersNull(_logger);
                 return Task.FromResult<string?>(null);
             }
 
@@ -56,23 +58,24 @@ public partial class HttpHeaderTenantIdentificationStrategy : ITenantIdentificat
 
                 if (!string.IsNullOrWhiteSpace(tenantIdentifier))
                 {
-                    _logger.LogDebug("HttpHeaderTenantIdentificationStrategy: Identified potential tenant identifier '{TenantIdentifier}' from HTTP header '{HeaderName}'.", tenantIdentifier, _headerName);
+                    LogTenantIdentifiedFromHeader(_logger, tenantIdentifier, _headerName);
                     return Task.FromResult<string?>(tenantIdentifier);
                 }
 
-                if (headerValues.Count != 0) // Header was present but all values were null/whitespace
+                if (headerValues.Count != 0)
                 {
-                    _logger.LogDebug("HttpHeaderTenantIdentificationStrategy: HTTP header '{HeaderName}' found, but its value(s) are null or whitespace.", _headerName);
+                    LogHeaderFoundButValueNullOrWhitespace(_logger, _headerName);
                 }
-                else // Header was present but empty (e.g. "X-Tenant-ID: ")
+                else
                 {
-                     _logger.LogDebug("HttpHeaderTenantIdentificationStrategy: HTTP header '{HeaderName}' found, but it is empty.", _headerName);
+                    LogHeaderFoundButEmpty(_logger, _headerName);
                 }
             }
             else
             {
-                _logger.LogDebug("HttpHeaderTenantIdentificationStrategy: HTTP header '{HeaderName}' not found in the request.", _headerName);
+                LogHeaderNotFound(_logger, _headerName);
             }
+            
             return Task.FromResult<string?>(null);
         }
     }

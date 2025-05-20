@@ -24,11 +24,13 @@ public partial class ClaimTenantIdentificationStrategy : ITenantIdentificationSt
             if (string.IsNullOrWhiteSpace(strategyOptions.ParameterName))
             {
                 Error error = new("TenantResolution.Strategy.Claim.MissingParameterName", "ClaimTenantIdentificationStrategy requires ParameterName (the claim type) to be configured in TenantResolutionStrategyOptions.");
-                _logger.LogCritical(error.Description);
+
+                LogMissingClaimTypeParameter(_logger, error.Code, error.Description);
+                
                 throw new InvalidTenantResolutionStrategyParameterException(error, nameof(TenantResolutionStrategyType.Claim), nameof(strategyOptions.ParameterName));
             }
             _tenantIdClaimType = strategyOptions.ParameterName;
-            _logger.LogInformation("ClaimTenantIdentificationStrategy initialized. Will look for tenant identifier in claim type: '{ClaimType}'.", _tenantIdClaimType);
+            LogInitializationSuccess(_logger, _tenantIdClaimType);
         }
 
     public int Priority => throw new NotImplementedException();
@@ -36,15 +38,15 @@ public partial class ClaimTenantIdentificationStrategy : ITenantIdentificationSt
     public Task<string?> IdentifyTenantAsync(HttpContext context)
         {
             ArgumentNullException.ThrowIfNull(context, nameof(context));
-            if (context.User?.Identity == null) 
+            if (context.User?.Identity is null) 
             {
-                 _logger.LogDebug("ClaimTenantIdentificationStrategy: HttpContext.User or User.Identity is null. Cannot identify tenant from claim.");
+                LogUserOrIdentityNull(_logger);
                  return Task.FromResult<string?>(null);
             }
 
             if (context.User.Identity.IsAuthenticated != true)
             {
-                _logger.LogDebug("ClaimTenantIdentificationStrategy: User is not authenticated. Cannot identify tenant from claim.");
+                LogUserNotAuthenticated(_logger);
                 return Task.FromResult<string?>(null);
             }
 
@@ -52,18 +54,20 @@ public partial class ClaimTenantIdentificationStrategy : ITenantIdentificationSt
             if (tenantIdClaim == null)
             {
                 string userIdForLog = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.Identity.Name ?? "unidentified_user";
-                _logger.LogDebug("ClaimTenantIdentificationStrategy: Tenant ID claim '{ClaimType}' not found for authenticated user '{UserId}'.", _tenantIdClaimType, userIdForLog);
+                
+                LogTenantIdClaimNotFound(_logger, _tenantIdClaimType, userIdForLog);
                 return Task.FromResult<string?>(null);
             }
 
             if (string.IsNullOrWhiteSpace(tenantIdClaim.Value))
             {
                 string userIdForLog = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.Identity.Name ?? "unidentified_user";
-                _logger.LogDebug("ClaimTenantIdentificationStrategy: Tenant ID claim '{ClaimType}' found for user '{UserId}', but its value is null or whitespace.", _tenantIdClaimType, userIdForLog);
+
+                LogTenantIdClaimValueNullOrWhitespace(_logger, _tenantIdClaimType, userIdForLog);
                 return Task.FromResult<string?>(null);
             }
-
-            _logger.LogDebug("ClaimTenantIdentificationStrategy: Identified potential tenant identifier '{TenantIdentifier}' from claim '{ClaimType}'.", tenantIdClaim.Value, _tenantIdClaimType);
+            
+            LogTenantIdentifiedFromClaim(_logger, tenantIdClaim.Value, _tenantIdClaimType);
             return Task.FromResult<string?>(tenantIdClaim.Value);
         }
     }

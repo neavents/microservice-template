@@ -7,8 +7,6 @@ public partial class RouteValueTenantIdentificationStrategy
 {
     private const int ClassId = 75;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtMissingRouteValueKeyParameter = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtRouteDataNull = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -17,13 +15,11 @@ public partial class RouteValueTenantIdentificationStrategy
     public const int EvtRouteValueStringNullOrWhitespace = BaseEventId + (5 * Logging.IncrementPerLog);
     public const int EvtRouteValueKeyNotFound = BaseEventId + (6 * Logging.IncrementPerLog);
 
-    // LoggerMessage Definitions
-
     [LoggerMessage(
         EventId = EvtMissingRouteValueKeyParameter,
         Level = LogLevel.Critical,
         Message = "RouteValueTenantIdentificationStrategy requires ParameterName (the route value key) to be configured. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMissingRouteValueKeyParameter(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogMissingRouteValueKeyParameter(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtInitializationSuccess,

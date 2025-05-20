@@ -25,13 +25,14 @@ public partial class ConfigurationTenantStore : ITenantStore
             if (options == null)
             {
                 Error error = new("MultiTenancy.Configuration.OptionsAccessorValueNull", "IOptions<MultiTenancyOptions>.Value is null. MultiTenancy configuration is missing or malformed.");
-                _logger.LogCritical(error.Description);
-                throw new TenantConfigurationException(error.Description, error);
+
+                LogOptionsAccessorValueNull(_logger, error.Code, error.Description);
+                throw new TenantConfigurationException(error.Description!, error);
             }
 
             if (options.Store.Type != TenantStoreType.Configuration)
             {
-                _logger.LogInformation("ConfigurationTenantStore initialized, but MultiTenancyOptions.Store.Type is '{StoreType}'. This store will not load tenants from configuration.", options.Store.Type);
+                LogStoreTypeMismatch(_logger, options.Store.Type);
                 _tenantsByIdentifier = new Dictionary<string, ITenantInfo>(StringComparer.OrdinalIgnoreCase); // Empty, but valid state.
                 return;
             }
@@ -39,14 +40,14 @@ public partial class ConfigurationTenantStore : ITenantStore
             if (options.Tenants == null)
             {
                 Error error = new("MultiTenancy.Configuration.TenantsCollectionNull", $"MultiTenancyOptions.Tenants collection is null, but Store.Type is '{options.Store.Type}'. No tenants can be loaded.");
-                _logger.LogError(error.Description);
+                LogTenantsCollectionNull(_logger, options.Store.Type, error.Code, error.Description);
 
-                throw new TenantConfigurationException(error.Description, error);
+                throw new TenantConfigurationException(error.Description!, error);
             }
 
             if (options.Tenants.Count == 0)
             {
-                _logger.LogWarning("MultiTenancyOptions.Tenants is empty. ConfigurationTenantStore will be initialized with no tenants.");
+                LogTenantsCollectionEmpty(_logger);
                 _tenantsByIdentifier = new Dictionary<string, ITenantInfo>(StringComparer.OrdinalIgnoreCase);
                 return;
             }
@@ -59,19 +60,20 @@ public partial class ConfigurationTenantStore : ITenantStore
 
                 if (string.IsNullOrWhiteSpace(identifier))
                 {
-                    _logger.LogWarning("Skipping tenant configuration entry: The identifier key is null or whitespace.");
+                    LogSkippingEntryNullIdentifier(_logger);
                     continue; // Skip this entry, try to load others.
                 }
                 if (configEntry == null)
                 {
-                    _logger.LogWarning("Skipping tenant configuration entry for identifier '{Identifier}': The configuration value is null.", identifier);
+                    LogSkippingEntryNullConfig(_logger, identifier);
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(configEntry.Id))
                 {
                     Error error = new("Tenant.Configuration.EntryMissingId", $"Tenant configuration entry for identifier '{identifier}' is missing the required 'Id' property.");
-                    _logger.LogError(error.Description);
-                    throw new TenantConfigurationException(error.Description, error);
+
+                    LogEntryMissingRequiredId(_logger, identifier, error.Code, error.Description);
+                    throw new TenantConfigurationException(error.Description!, error);
                 }
 
                 try
@@ -82,7 +84,7 @@ public partial class ConfigurationTenantStore : ITenantStore
                         if (!Uri.TryCreate(configEntry.LogoUrl, UriKind.Absolute, out logoUri) ||
                             (logoUri?.Scheme != Uri.UriSchemeHttp && logoUri?.Scheme != Uri.UriSchemeHttps))
                         {
-                            _logger.LogWarning("Tenant '{TenantId}': Invalid or non-HTTP/HTTPS LogoUrl '{LogoUrl}'. It will be ignored.", configEntry.Id, configEntry.LogoUrl);
+                            LogInvalidLogoUrl(_logger, configEntry.Id, configEntry.LogoUrl);
                             logoUri = null;
                         }
                     }
@@ -107,45 +109,45 @@ public partial class ConfigurationTenantStore : ITenantStore
 
                     if (!tempTenants.TryAdd(identifier, tenantInfo))
                     {
-                         _logger.LogWarning("Duplicate tenant identifier '{Identifier}' encountered in configuration. The first valid entry for this identifier was used. Subsequent entries are ignored.", identifier);
+                        LogDuplicateTenantIdentifier(_logger, identifier);
                     }
                 }
-                catch (ArgumentException ex) // From TenantInfo constructor (e.g., if Id was somehow invalid despite prior check)
+                catch (ArgumentException ex)
                 {
                     Error error = new("Tenant.Configuration.EntryCreationFailed", $"Failed to create TenantInfo object for identifier '{identifier}' from configuration: {ex.Message}");
-                    _logger.LogError(ex, error.Description);
-                    throw new TenantConfigurationException(error.Description, error, ex);
+
+                    LogTenantInfoCreationArgumentError(_logger, identifier, error.Code, error.Description, ex);
+                    throw new TenantConfigurationException(error.Description!, error, ex);
                 }
-                catch (Exception ex) // Catch-all for unexpected issues during mapping
+                catch (Exception ex)
                 {
                     Error error = new("Tenant.Configuration.UnexpectedEntryError", $"An unexpected error occurred while processing tenant configuration for identifier '{identifier}'.");
-                    _logger.LogCritical(ex, error.Description); // Critical because it's an unknown processing error.
-                    throw new TenantConfigurationException(error.Description, error, ex);
+
+                    LogUnexpectedTenantEntryProcessingError(_logger, identifier, error.Code, error.Description, ex);
+                    throw new TenantConfigurationException(error.Description!, error, ex);
                 }
             }
             _tenantsByIdentifier = tempTenants;
-            _logger.LogInformation("ConfigurationTenantStore initialized successfully with {TenantCount} tenants from configuration.", _tenantsByIdentifier.Count);
+            LogInitializationSuccess(_logger, _tenantsByIdentifier.Count);
         }
 
         public Task<ITenantInfo?> GetTenantByIdentifierAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                // This is an invalid argument for lookup, not necessarily an "exception" unless the caller expects one.
-                // Returning null is standard for "not found" or "invalid input for search".
-                _logger.LogDebug("GetTenantByIdentifierAsync called with null or empty identifier. Returning null.");
+                LogGetTenantCalledWithNullOrEmptyId(_logger);
+
                 return Task.FromResult<ITenantInfo?>(null);
             }
 
             if (_tenantsByIdentifier.TryGetValue(id, out ITenantInfo? tenantInfo))
-            {
-                //ArgumentNullException.ThrowIfNull(tenantInfo);
+            { 
+                LogTenantFoundByIdentifier(_logger, id, tenantInfo.Id, tenantInfo.Status);
 
-                _logger.LogDebug("Tenant found for identifier '{Identifier}'. Tenant ID: '{TenantId}', Status: '{TenantStatus}'.", id, tenantInfo.Id, tenantInfo.Status);
-                return Task.FromResult(tenantInfo); // Returns the tenant as is, status check is up to caller.
+                return Task.FromResult<ITenantInfo?>(tenantInfo);
             }
 
-            _logger.LogDebug("No tenant found in ConfigurationTenantStore for identifier '{Identifier}'.", id);
+            LogTenantNotFoundByIdentifier(_logger, id);
             return Task.FromResult<ITenantInfo?>(null);
         }
     }

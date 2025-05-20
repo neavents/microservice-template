@@ -35,29 +35,32 @@ public partial class RemoteHttpTenantStore : ITenantStore
         _logger = logger;
         _multiTenancyOptions = multiTenancyOptionsAccessor.Value;
 
-        if (_multiTenancyOptions == null)
+        if (_multiTenancyOptions is null)
         {
             Error error = new("MultiTenancy.Configuration.OptionsAccessorValueNull.RemoteStore", "IOptions<MultiTenancyOptions>.Value is null. RemoteHttpTenantStore cannot be initialized.");
-            _logger.LogCritical(error.Description);
-            throw new TenantConfigurationException(error.Description, error);
+            LogOptionsAccessorValueNull(_logger, error.Code, error.Description);
+
+            throw new TenantConfigurationException(error.Description!, error);
         }
 
         if (_multiTenancyOptions.Store.Type != TenantStoreType.RemoteService)
         {
-            _logger.LogWarning("RemoteHttpTenantStore is registered, but MultiTenancyOptions.Store.Type is '{StoreType}'. This store might not be used as intended by the configuration.", _multiTenancyOptions.Store.Type);
+            LogStoreTypeMismatch(_logger, _multiTenancyOptions.Store.Type);
         }
 
         if (string.IsNullOrWhiteSpace(_multiTenancyOptions.Store.ServiceEndpoint))
         {
             Error error = new("MultiTenancy.Configuration.RemoteStore.MissingServiceEndpoint", $"RemoteHttpTenantStore requires MultiTenancyOptions.Store.ServiceEndpoint to be configured when Store.Type is '{_multiTenancyOptions.Store.Type}'.");
-            _logger.LogCritical(error.Description);
-            throw new TenantConfigurationException(error.Description, error);
+            LogMissingServiceEndpoint(_logger, _multiTenancyOptions.Store.Type, error.Code, error.Description);
+
+            throw new TenantConfigurationException(error.Description!, error);
         }
         if (!Uri.TryCreate(_multiTenancyOptions.Store.ServiceEndpoint, UriKind.Absolute, out _))
         {
             Error error = new("MultiTenancy.Configuration.RemoteStore.InvalidServiceEndpoint", $"MultiTenancyOptions.Store.ServiceEndpoint '{_multiTenancyOptions.Store.ServiceEndpoint}' is not a valid absolute URI.");
-            _logger.LogCritical(error.Description);
-            throw new TenantConfigurationException(error.Description, error);
+            LogInvalidServiceEndpoint(_logger, _multiTenancyOptions.Store.ServiceEndpoint, error.Code, error.Description);
+            
+            throw new TenantConfigurationException(error.Description!, error);
         }
 
         _jsonSerializerOptions = new JsonSerializerOptions
@@ -65,48 +68,49 @@ public partial class RemoteHttpTenantStore : ITenantStore
             PropertyNameCaseInsensitive = true,
         };
 
-        _logger.LogInformation("RemoteHttpTenantStore initialized. Will use service endpoint: '{ServiceEndpoint}'.", _multiTenancyOptions.Store.ServiceEndpoint);
+        LogInitializationSuccess(_logger, _multiTenancyOptions.Store.ServiceEndpoint);
     }
 
-    public async Task<ITenantInfo?> GetTenantByIdentifierAsync(string identifier)
+    public async Task<ITenantInfo?> GetTenantByIdentifierAsync(string id)
     {
-        if (string.IsNullOrWhiteSpace(identifier))
+        if (string.IsNullOrWhiteSpace(id))
         {
-            _logger.LogDebug("RemoteHttpTenantStore.GetTenantByIdentifierAsync called with null or empty identifier.");
+            LogGetTenantCalledWithNullOrEmptyId(_logger);
             return null;
         }
 
-        string requestUri = $"{_multiTenancyOptions.Store.ServiceEndpoint!.TrimEnd('/')}/resolve/{Uri.EscapeDataString(identifier)}";
+        string requestUri = $"{_multiTenancyOptions.Store.ServiceEndpoint!.TrimEnd('/')}/resolve/{Uri.EscapeDataString(id)}";
 
         try
         {
             HttpClient client = _httpClientFactory.CreateClient("TenantStoreHttpClient");
-            _logger.LogDebug("RemoteHttpTenantStore: Requesting tenant info from '{RequestUri}' for identifier '{Identifier}'.", requestUri, identifier);
+            LogRequestingTenantInfo(_logger, requestUri, id);
 
-            HttpResponseMessage response = await client.GetAsync(requestUri);
+            HttpResponseMessage response = await client.GetAsync(requestUri).ConfigureAwait(false);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                _logger.LogDebug("Remote service returned 404 Not Found for tenant identifier '{Identifier}' at '{RequestUri}'.", identifier, requestUri);
+                LogRemoteServiceNotFound(_logger, id, requestUri);
                 return null;
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 string responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                Error error = new("Tenant.Store.Remote.RequestFailed", $"Remote tenant service request failed with status code {response.StatusCode} for identifier '{identifier}'. URI: {requestUri}. Response: {responseContent.Substring(0, Math.Min(responseContent.Length, 500))}");
-                _logger.LogError(error.Description);
+                Error error = new("Tenant.Store.Remote.RequestFailed", $"Remote tenant service request failed with status code {response.StatusCode} for identifier '{id}'. URI: {requestUri}. Response: {responseContent.Substring(0, Math.Min(responseContent.Length, 500))}");
+                
+                LogRemoteRequestFailed(_logger, response.StatusCode, id, requestUri, responseContent, error.Code, error.Description);
 
-                throw new TenantStoreQueryFailedException(error, $"Identifier: {identifier}, URI: {requestUri}, Status: {response.StatusCode}");
+                throw new TenantStoreQueryFailedException(error, $"Identifier: {id}, URI: {requestUri}, Status: {response.StatusCode}");
             }
 
             RemoteTenantDto? tenantDto = await response.Content.ReadFromJsonAsync<RemoteTenantDto>(_jsonSerializerOptions).ConfigureAwait(false);
 
-            if (tenantDto == null || string.IsNullOrWhiteSpace(tenantDto.Id))
+            if (tenantDto is null || string.IsNullOrWhiteSpace(tenantDto.Id))
             {
-                _logger.LogWarning("Remote tenant service returned a successful response for identifier '{Identifier}', but the DTO is null or has a missing ID. URI: {RequestUri}", identifier, requestUri);
-                // This could be a TenantDeserializationException or a specific "InvalidRemoteTenantDataException".
-                Error error = new("Tenant.Store.Remote.InvalidData", $"Remote service returned invalid or incomplete tenant data for identifier '{identifier}'.");
+                LogRemoteResponseDtoNullOrMissingId(_logger, id, requestUri);
+
+                Error error = new("Tenant.Store.Remote.InvalidData", $"Remote service returned invalid or incomplete tenant data for identifier '{id}'.");
                 throw new TenantDeserializationException(error, nameof(RemoteTenantDto));
             }
 
@@ -115,7 +119,7 @@ public partial class RemoteHttpTenantStore : ITenantStore
                 (!Uri.TryCreate(tenantDto.LogoUrl, UriKind.Absolute, out logoUri) ||
                  (logoUri?.Scheme != Uri.UriSchemeHttp && logoUri?.Scheme != Uri.UriSchemeHttps)))
             {
-                _logger.LogWarning("Tenant '{TenantId}' from Remote: Invalid or non-HTTP/HTTPS LogoUrl '{LogoUrl}'. It will be ignored.", tenantDto.Id, tenantDto.LogoUrl);
+                LogInvalidLogoUrl(_logger, tenantDto.Id, tenantDto.LogoUrl);
                 logoUri = null;
             }
 
@@ -140,32 +144,37 @@ public partial class RemoteHttpTenantStore : ITenantStore
                 concurrencyStamp: tenantDto.ConcurrencyStamp
             );
 
-            _logger.LogDebug("Tenant successfully retrieved from remote service for identifier '{Identifier}'. Tenant ID: '{TenantId}', Status: '{TenantStatus}'.", identifier, tenantInfo.Id, tenantInfo.Status);
+            LogTenantRetrievedSuccessfully(_logger, id, tenantInfo.Id, tenantInfo.Status);
             return tenantInfo;
         }
         catch (TenantConfigurationException) { throw; } 
         catch (HttpRequestException ex) 
         {
             Error error = new("Tenant.Store.Remote.Unavailable", $"Remote tenant service at '{requestUri}' is unavailable or a network error occurred.");
-            _logger.LogError(ex, error.Description);
+            
+            LogRemoteServiceUnavailable(_logger, requestUri, error.Code, error.Description, ex);
+
             throw new TenantStoreUnavailableException(error, ex, $"Endpoint: {_multiTenancyOptions.Store.ServiceEndpoint}");
         }
         catch (JsonException ex)
         {
-            Error error = new("Tenant.Store.Remote.DeserializationFailed", $"Failed to deserialize tenant data from remote service response for identifier '{identifier}'. URI: {requestUri}");
-            _logger.LogError(ex, error.Description);
+            Error error = new("Tenant.Store.Remote.DeserializationFailed", $"Failed to deserialize tenant data from remote service response for identifier '{id}'. URI: {requestUri}");
+
+            LogRemoteDeserializationFailed(_logger, id, requestUri, error.Code, error.Description, ex);
             throw new TenantDeserializationException(error, ex, nameof(RemoteTenantDto));
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException) 
         {
             Error error = new("Tenant.Store.Remote.Timeout", $"Request to remote tenant service at '{requestUri}' timed out.");
-            _logger.LogError(ex, error.Description);
+            LogRemoteRequestTimeout(_logger, requestUri, error.Code, error.Description, ex);
+
             throw new TenantStoreUnavailableException(error, ex, $"Endpoint: {_multiTenancyOptions.Store.ServiceEndpoint} (Timeout)");
         }
         catch (Exception ex) 
         {
-            Error error = new("Tenant.Store.Remote.UnexpectedError", $"An unexpected error occurred in RemoteHttpTenantStore while retrieving tenant by identifier '{identifier}'. URI: {requestUri}");
-            _logger.LogError(ex, error.Description);
+            Error error = new("Tenant.Store.Remote.UnexpectedError", $"An unexpected error occurred in RemoteHttpTenantStore while retrieving tenant by identifier '{id}'. URI: {requestUri}");
+
+            LogRemoteUnexpectedError(_logger, id, requestUri, error.Code, error.Description, ex);
             throw new TenantStoreException(error, ex);
         }
     }

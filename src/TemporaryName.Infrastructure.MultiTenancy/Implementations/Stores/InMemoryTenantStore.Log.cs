@@ -8,8 +8,6 @@ public partial class InMemoryTenantStore
 {
     private const int ClassId = 45;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtSkippingNullTenantOnInit = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtDuplicateTenantIdOnInit = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -19,8 +17,6 @@ public partial class InMemoryTenantStore
     public const int EvtTenantAddedOrUpdated = BaseEventId + (6 * Logging.IncrementPerLog);
     public const int EvtTenantRemoved = BaseEventId + (7 * Logging.IncrementPerLog);
     public const int EvtRemoveTenantNotFound = BaseEventId + (8 * Logging.IncrementPerLog);
-
-    // LoggerMessage Definitions
 
     [LoggerMessage(
         EventId = EvtSkippingNullTenantOnInit,

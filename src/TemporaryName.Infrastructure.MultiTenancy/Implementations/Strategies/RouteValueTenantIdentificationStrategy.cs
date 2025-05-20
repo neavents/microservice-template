@@ -24,45 +24,47 @@ public partial class RouteValueTenantIdentificationStrategy : ITenantIdentificat
             if (string.IsNullOrWhiteSpace(strategyOptions.ParameterName))
             {
                 Error error = new("TenantResolution.Strategy.RouteValue.MissingParameterName", "RouteValueTenantIdentificationStrategy requires ParameterName (the route value key) to be configured in TenantResolutionStrategyOptions.");
-                _logger.LogCritical(error.Description);
+                LogMissingRouteValueKeyParameter(_logger, error.Code, error.Description);
+
                 throw new InvalidTenantResolutionStrategyParameterException(error, nameof(TenantResolutionStrategyType.RouteValue), nameof(strategyOptions.ParameterName));
             }
             _routeValueKey = strategyOptions.ParameterName;
-            _logger.LogInformation("RouteValueTenantIdentificationStrategy initialized. Will look for tenant identifier in route value key: '{RouteValueKey}'.", _routeValueKey);
+
+            LogInitializationSuccess(_logger, _routeValueKey);
         }
 
     public int Priority => throw new NotImplementedException();
-
+aa
     public Task<string?> IdentifyTenantAsync(HttpContext context)
         {
             ArgumentNullException.ThrowIfNull(context, nameof(context));
 
             RouteData? routeData = context.GetRouteData();
-            if (routeData == null)
+            if (routeData is null)
             {
-                _logger.LogDebug("RouteValueTenantIdentificationStrategy: RouteData is null for the current request. This strategy requires routing to be active.");
+                LogRouteDataNull(_logger);
                 return Task.FromResult<string?>(null);
             }
 
             if (routeData.Values.TryGetValue(_routeValueKey, out object? routeValueObject))
             {
-                if (routeValueObject == null)
+                if (routeValueObject is null)
                 {
-                    _logger.LogDebug("RouteValueTenantIdentificationStrategy: Route value key '{RouteValueKey}' found, but its value is null.", _routeValueKey);
+                    LogRouteValueFoundButIsNull(_logger, _routeValueKey);
                     return Task.FromResult<string?>(null);
                 }
 
                 string? tenantIdentifier = routeValueObject.ToString();
                 if (!string.IsNullOrWhiteSpace(tenantIdentifier))
                 {
-                    _logger.LogDebug("RouteValueTenantIdentificationStrategy: Identified potential tenant identifier '{TenantIdentifier}' from route value key '{RouteValueKey}'.", tenantIdentifier, _routeValueKey);
+                    LogTenantIdentifiedFromRouteValue(_logger, tenantIdentifier, _routeValueKey);
                     return Task.FromResult<string?>(tenantIdentifier);
                 }
-                _logger.LogDebug("RouteValueTenantIdentificationStrategy: Route value key '{RouteValueKey}' found, but its string representation is null or whitespace. Original value: '{OriginalValue}'", _routeValueKey, routeValueObject);
+                LogRouteValueStringNullOrWhitespace(_logger, _routeValueKey, routeValueObject);
             }
             else
             {
-                _logger.LogDebug("RouteValueTenantIdentificationStrategy: Route value key '{RouteValueKey}' not found in RouteData.Values.", _routeValueKey);
+                LogRouteValueKeyNotFound(_logger, _routeValueKey);
             }
             return Task.FromResult<string?>(null);
         }

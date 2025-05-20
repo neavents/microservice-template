@@ -24,11 +24,13 @@ public partial class QueryStringTenantIdentificationStrategy : ITenantIdentifica
             if (string.IsNullOrWhiteSpace(strategyOptions.ParameterName))
             {
                 Error error = new("TenantResolution.Strategy.QueryString.MissingParameterName", "QueryStringTenantIdentificationStrategy requires ParameterName (the query string key) to be configured in TenantResolutionStrategyOptions.");
-                _logger.LogCritical(error.Description);
+                LogMissingQueryParameterName(_logger, error.Code, error.Description);
+
                 throw new InvalidTenantResolutionStrategyParameterException(error, nameof(TenantResolutionStrategyType.QueryString), nameof(strategyOptions.ParameterName));
             }
             _queryParameterName = strategyOptions.ParameterName;
-            _logger.LogInformation("QueryStringTenantIdentificationStrategy initialized. Will look for tenant identifier in query parameter: '{QueryParameterName}'.", _queryParameterName);
+
+            LogInitializationSuccess(_logger, _queryParameterName);
         }
 
     public int Priority => throw new NotImplementedException();
@@ -36,9 +38,9 @@ public partial class QueryStringTenantIdentificationStrategy : ITenantIdentifica
     public Task<string?> IdentifyTenantAsync(HttpContext context)
         {
             ArgumentNullException.ThrowIfNull(context, nameof(context));
-            if (context.Request == null)
+            if (context.Request is null)
             {
-                 _logger.LogWarning("HttpContext.Request is null. Cannot identify tenant using QueryString strategy.");
+                LogHttpContextRequestNull(_logger);
                  return Task.FromResult<string?>(null);
             }
 
@@ -48,21 +50,21 @@ public partial class QueryStringTenantIdentificationStrategy : ITenantIdentifica
 
                 if (!string.IsNullOrWhiteSpace(tenantIdentifier))
                 {
-                    _logger.LogDebug("QueryStringTenantIdentificationStrategy: Identified potential tenant identifier '{TenantIdentifier}' from query string parameter '{QueryParameterName}'.", tenantIdentifier, _queryParameterName);
+                    LogTenantIdentifiedFromQuery(_logger, tenantIdentifier, _queryParameterName);
                     return Task.FromResult<string?>(tenantIdentifier);
                 }
                 if (queryValues.Count != 0)
                 {
-                    _logger.LogDebug("QueryStringTenantIdentificationStrategy: Query string parameter '{QueryParameterName}' found, but its value(s) are null or whitespace.", _queryParameterName);
+                    LogQueryParamFoundButValueNullOrWhitespace(_logger, _queryParameterName);
                 }
                 else
                 {
-                    _logger.LogDebug("QueryStringTenantIdentificationStrategy: Query string parameter '{QueryParameterName}' found, but it is empty.", _queryParameterName);
+                    LogQueryParamFoundButEmpty(_logger, _queryParameterName);
                 }
             }
             else
             {
-                _logger.LogDebug("QueryStringTenantIdentificationStrategy: Query string parameter '{QueryParameterName}' not found in the request.", _queryParameterName);
+                LogQueryParamNotFound(_logger, _queryParameterName);
             }
             return Task.FromResult<string?>(null);
         }

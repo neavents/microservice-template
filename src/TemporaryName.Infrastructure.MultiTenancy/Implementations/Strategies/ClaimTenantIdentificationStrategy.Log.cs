@@ -7,8 +7,6 @@ public partial class ClaimTenantIdentificationStrategy
 {
     private const int ClassId = 55;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtMissingClaimTypeParameter = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtInitializationSuccess = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtUserOrIdentityNull = BaseEventId + (2 * Logging.IncrementPerLog);
@@ -17,13 +15,11 @@ public partial class ClaimTenantIdentificationStrategy
     public const int EvtTenantIdClaimValueNullOrWhitespace = BaseEventId + (5 * Logging.IncrementPerLog);
     public const int EvtTenantIdentifiedFromClaim = BaseEventId + (6 * Logging.IncrementPerLog);
 
-    // LoggerMessage Definitions
-
     [LoggerMessage(
         EventId = EvtMissingClaimTypeParameter,
         Level = LogLevel.Critical,
         Message = "ClaimTenantIdentificationStrategy requires ParameterName (the claim type) to be configured. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMissingClaimTypeParameter(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogMissingClaimTypeParameter(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtInitializationSuccess,

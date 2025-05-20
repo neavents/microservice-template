@@ -61,7 +61,6 @@ public partial class TenantStoreProvider : ITenantStoreProvider
                     break;
                 case TenantStoreType.Custom:
                     ITenantStore? customStore = (ITenantStore?)_serviceProvider.GetService(typeof(ITenantStore));
-                    // Check if the resolved store is one of the "default" types, implying a specific custom one wasn't registered or was overridden.
                     if (customStore == null ||
                         customStore.GetType() == typeof(ConfigurationTenantStore) ||
                         customStore.GetType() == typeof(DatabaseTenantStore) ||
