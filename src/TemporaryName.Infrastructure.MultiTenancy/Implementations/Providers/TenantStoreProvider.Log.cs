@@ -27,19 +27,19 @@ public partial class TenantStoreProvider
         EventId = EvtCustomStoreNotDistinctlyRegistered,
         Level = LogLevel.Critical,
         Message = "Custom store not distinctly registered. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogCustomStoreNotDistinctlyRegistered(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogCustomStoreNotDistinctlyRegistered(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtUsingCustomStore,
         Level = LogLevel.Information,
         Message = "TenantStoreProvider: Using custom registered ITenantStore of type {CustomStoreType}")]
-    public static partial void LogUsingCustomStore(ILogger logger, string customStoreType);
+    public static partial void LogUsingCustomStore(ILogger logger, Type customStoreType);
 
     [LoggerMessage(
         EventId = EvtUnsupportedStoreType,
         Level = LogLevel.Critical,
         Message = "Unsupported tenant store type configured: {StoreType}. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogUnsupportedStoreType(ILogger logger, string storeType, string errorCode, string errorDescription);
+    public static partial void LogUnsupportedStoreType(ILogger logger, TenantStoreType storeType, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtStoreCreationConfigError,
@@ -51,11 +51,11 @@ public partial class TenantStoreProvider
         EventId = EvtStoreInstantiationFailed,
         Level = LogLevel.Critical,
         Message = "TenantStoreProvider: Failed to instantiate tenant store of type {StoreType}. Error Code: {ErrorCode}, Details: {ErrorDescription}. See inner exception for details.")]
-    public static partial void LogStoreInstantiationFailed(ILogger logger, string storeType, string errorCode, string errorDescription, Exception ex);
+    public static partial void LogStoreInstantiationFailed(ILogger logger, TenantStoreType storeType, string errorCode, string? errorDescription, Exception ex);
 
     [LoggerMessage(
         EventId = EvtBaseStoreCreated,
         Level = LogLevel.Information,
         Message = "TenantStoreProvider: Successfully created base store of type {StoreTypeResolved}.")]
-    public static partial void LogBaseStoreCreated(ILogger logger, string storeTypeResolved);
+    public static partial void LogBaseStoreCreated(ILogger logger, Type storeTypeResolved);
 }

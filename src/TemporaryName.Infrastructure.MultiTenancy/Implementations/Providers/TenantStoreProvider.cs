@@ -32,8 +32,7 @@ public partial class TenantStoreProvider : ITenantStoreProvider
     {
         ArgumentNullException.ThrowIfNull(storeOptions, nameof(storeOptions));
 
-        _logger.LogDebug("TenantStoreProvider: Getting base store for type: {StoreType}, ConnectionStringName: '{CSN}', ServiceEndpoint: '{Endpoint}'",
-            storeOptions.Type, storeOptions.ConnectionStringName, storeOptions.ServiceEndpoint);
+        LogGettingBaseStoreInfo(_logger, storeOptions.Type, storeOptions.ConnectionStringName, storeOptions.ServiceEndpoint);
 
         ITenantStore baseStore;
         try
@@ -71,30 +70,35 @@ public partial class TenantStoreProvider : ITenantStoreProvider
                         )
                     {
                         Error error = new("Tenant.Store.Custom.NotDistinctlyRegistered", "TenantStoreType.Custom is configured, but no distinct custom ITenantStore implementation was found or it resolved to a default store type. Ensure your custom store is registered and uniquely identifiable if needed.");
-                        _logger.LogCritical(error.Description);
-                        throw new TenantConfigurationException(error.Description, error);
+                        LogCustomStoreNotDistinctlyRegistered(_logger, error.Code, error.Description);
+
+                        throw new TenantConfigurationException(error.Description!, error);
                     }
                     baseStore = customStore;
-                    _logger.LogInformation("TenantStoreProvider: Using custom registered ITenantStore of type {CustomStoreType}", baseStore.GetType().FullName);
+                    LogUsingCustomStore(_logger, baseStore.GetType());
+
                     break;
                 default:
                     Error err = new("Tenant.Store.UnknownType", $"Unsupported tenant store type: {storeOptions.Type}.");
-                    _logger.LogCritical(err.Description);
-                    throw new TenantConfigurationException(err.Description, err);
+                    LogUnsupportedStoreType(_logger, storeOptions.Type, err.Code, err.Description);
+                    throw new TenantConfigurationException(err.Description!, err);
             }
         }
         catch (TenantConfigurationException ex)
         {
-            _logger.LogError(ex, "TenantStoreProvider: Failed to create tenant store due to configuration issues for type {StoreType}.", storeOptions.Type);
+            LogStoreCreationConfigError(_logger, storeOptions.Type, ex);
             throw;
         }
         catch (Exception ex)
         {
             Error error = new("Tenant.Store.InstantiationFailed", $"TenantStoreProvider: Failed to instantiate tenant store of type {storeOptions.Type}. See inner exception for details.");
-            _logger.LogCritical(ex, error.Description);
-            throw new TenantConfigurationException(error.Description, error, ex);
+
+            LogStoreInstantiationFailed(_logger, storeOptions.Type, error.Code, error.Description, ex);
+
+            throw new TenantConfigurationException(error.Description!, error, ex);
         }
-        _logger.LogInformation("TenantStoreProvider: Successfully created base store of type {StoreTypeResolved}.", baseStore.GetType().FullName);
+        
+        LogBaseStoreCreated(_logger, baseStore.GetType());
         return baseStore;
     }
 }

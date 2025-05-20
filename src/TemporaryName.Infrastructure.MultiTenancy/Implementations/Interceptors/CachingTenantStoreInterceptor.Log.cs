@@ -15,6 +15,7 @@ public partial class CachingTenantStoreInterceptor
     public const int EvtTenantCacheMiss = BaseEventId + (5 * Logging.IncrementPerLog);
     public const int EvtUnderlyingCallFailed = BaseEventId + (6 * Logging.IncrementPerLog);
     public const int EvtUnderlyingCallCancelled = BaseEventId + (7 * Logging.IncrementPerLog);
+    public const int EvtCompletedTaskDoesNotHaveResultProperty = EvtUnderlyingCallCancelled + 1;
     public const int EvtCanNotAccessResultOfCompletedTaskForCaching = BaseEventId + (8 * Logging.IncrementPerLog);
     public const int EvtCanNotExtractResultForCaching = BaseEventId + (9 * Logging.IncrementPerLog);
     public const int EvtCachingTheResult = BaseEventId + (10 * Logging.IncrementPerLog);
@@ -70,6 +71,13 @@ public partial class CachingTenantStoreInterceptor
         Level = LogLevel.Warning,
         Message = "Underlying call for {MethodName} (identifier: {Identifier}, cache key: {CacheKey}) was canceled. Not caching canceled task.")]
     public static partial void LogUnderlyingCallCancelled(ILogger logger, string methodName, string identifier, string cacheKey);
+
+    [LoggerMessage(
+        EventId = EvtCompletedTaskDoesNotHaveResultProperty,
+        Level = LogLevel.Warning,
+        Message = "Completed Task for {MethodName} (identifier: {Identifier}) of type {TaskType} does not have a 'Result' property. This might indicate a non-generic Task or an issue with Task internals."
+    )]
+    public static partial void LogCompletedTaskDoesNotHaveResultProperty(ILogger logger, string methodName, string identifier, Type taskType);
 
     [LoggerMessage(
         EventId = EvtCanNotAccessResultOfCompletedTaskForCaching,

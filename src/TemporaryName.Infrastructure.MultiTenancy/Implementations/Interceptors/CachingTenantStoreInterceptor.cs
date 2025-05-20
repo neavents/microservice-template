@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Castle.DynamicProxy;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -15,12 +16,12 @@ namespace TemporaryName.Infrastructure.MultiTenancy.Implementations.Interceptors
 public partial class CachingTenantStoreInterceptor : IInterceptor
 {
     private readonly IMemoryCache _memoryCache;
-    private readonly CacheOptions _cacheOptions; // Directly injected CacheOptions
+    private readonly CacheOptions _cacheOptions;
     private readonly ILogger<CachingTenantStoreInterceptor> _logger;
 
     public CachingTenantStoreInterceptor(
         IMemoryCache memoryCache,
-        IOptions<MultiTenancyOptions> multiTenancyOptionsAccessor, // To get CacheOptions
+        IOptions<MultiTenancyOptions> multiTenancyOptionsAccessor,
         ILogger<CachingTenantStoreInterceptor> logger)
     {
         ArgumentNullException.ThrowIfNull(memoryCache, nameof(memoryCache));
@@ -31,24 +32,26 @@ public partial class CachingTenantStoreInterceptor : IInterceptor
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
         _memoryCache = memoryCache;
-        _cacheOptions = multiTenancyOptionsAccessor.Value.Store.Cache; // Extract CacheOptions
+        _cacheOptions = multiTenancyOptionsAccessor.Value.Store.Cache;
         _logger = logger;
 
         if (!_cacheOptions.Enabled)
         {
-            _logger.LogWarning("CachingTenantStoreInterceptor instantiated, but CacheOptions.Enabled is false. Interception will likely bypass caching.");
+            LogInterceptorInstantiatedButCacheIsDisabled(_logger);
         }
         if (_cacheOptions.AbsoluteExpirationSeconds <= 0 && _cacheOptions.SlidingExpirationSeconds <= 0 && _cacheOptions.Enabled)
         {
-            _logger.LogWarning("CachingTenantStoreInterceptor: Cache is enabled but both AbsoluteExpirationSeconds and SlidingExpirationSeconds are non-positive. Items might not be cached effectively.");
+            LogStrangeCacheExpirationAndSliding(_logger);
         }
     }
 
     public void Intercept(IInvocation invocation)
     {
+        ArgumentNullException.ThrowIfNull(invocation);
+
         if (!_cacheOptions.Enabled)
         {
-            _logger.LogTrace("Caching is disabled, proceeding with invocation for {MethodName} without caching.", invocation.Method.Name);
+            LogProceedingWithoutCaching(_logger, invocation.Method.Name);
             invocation.Proceed();
             return;
         }
@@ -59,16 +62,16 @@ public partial class CachingTenantStoreInterceptor : IInterceptor
             !string.IsNullOrWhiteSpace(identifier))
         {
             string cacheKey = $"TenantInfoByIdentifier_{identifier}";
-            _logger.LogTrace("Intercepting {MethodName} for identifier '{Identifier}'. Cache key: '{CacheKey}'.", invocation.Method.Name, identifier, cacheKey);
+            LogIntercepting(_logger, invocation.Method.Name, identifier, cacheKey);
 
             if (_memoryCache.TryGetValue(cacheKey, out object? cachedResult))
             {
-                _logger.LogDebug("Tenant '{Identifier}' found in cache for method {MethodName}. Cache key: '{CacheKey}'.", identifier, invocation.Method.Name, cacheKey);
+                LogTenantCacheHit(_logger, identifier, invocation.Method.Name, cacheKey);
                 invocation.ReturnValue = cachedResult;
                 return;
             }
 
-            _logger.LogDebug("Tenant '{Identifier}' not found in cache for method {MethodName}. Proceeding with actual call. Cache key: '{CacheKey}'.", identifier, invocation.Method.Name, cacheKey);
+            LogTenantCacheMiss(_logger, identifier, invocation.Method.Name, cacheKey);
             invocation.Proceed();
 
             // Post-processing for async methods:
@@ -80,36 +83,42 @@ public partial class CachingTenantStoreInterceptor : IInterceptor
                 {
                     if (t.IsFaulted)
                     {
-                        _logger.LogWarning(t.Exception, "Underlying call for {MethodName} (identifier: {Identifier}, cache key: {CacheKey}) failed. Not caching faulted task.", invocation.Method.Name, identifier, cacheKey);
-                        // Optionally, cache the exception or a marker for a short period to prevent hammering a failing downstream service.
-                        // For now, we don't cache failures.
+                        LogUnderlyingCallFailed(_logger, invocation.Method.Name, identifier, cacheKey, null);
                         return;
                     }
                     if (t.IsCanceled)
                     {
-                        _logger.LogWarning("Underlying call for {MethodName} (identifier: {Identifier}, cache key: {CacheKey}) was canceled. Not caching canceled task.", invocation.Method.Name, identifier, cacheKey);
+                        LogUnderlyingCallCancelled(_logger, invocation.Method.Name, identifier, cacheKey);
                         return;
                     }
 
-                    // Get the result from the task to cache it.
-                    // This requires knowing the Task's result type.
                     object? resultToCache = null;
                     if (invocation.Method.ReturnType.IsGenericType &&
                         invocation.Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
                     {
                         try
                         {
-                            resultToCache = ((dynamic)t).Result; // Access Task<T>.Result
+                            PropertyInfo? resultProperty = t.GetType().GetProperty("Result");
+                            if (resultProperty != null)
+                            {
+                                resultToCache = resultProperty.GetValue(t);
+                            }
+                            else
+                            {
+                                LogCompletedTaskDoesNotHaveResultProperty(_logger, invocation.Method.Name, identifier, t.GetType());
+                                return;
+                            }
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Error accessing result of completed task for caching. Method: {MethodName}, Identifier: {Identifier}", invocation.Method.Name, identifier);
-                            return; // Cannot cache if result cannot be accessed
+                            LogCanNotAccessResultOfCompletedTaskForCaching(_logger, invocation.Method.Name, identifier, ex);
+                            return;
                         }
+                        ;
                     }
                     else
                     {
-                        _logger.LogWarning("Return type of {MethodName} is Task but not Task<T>. Cannot extract result for caching.", invocation.Method.Name);
+                        LogCanNotExtractResultForCaching(_logger, invocation.Method.Name);
                         return; // Should not happen for GetTenantByIdentifierAsync
                     }
 
@@ -126,25 +135,26 @@ public partial class CachingTenantStoreInterceptor : IInterceptor
 
                     if (entryOptions.AbsoluteExpiration.HasValue || entryOptions.SlidingExpiration.HasValue)
                     {
-                        _logger.LogDebug("Caching result for {MethodName} (identifier: {Identifier}) with key '{CacheKey}'. Result: {ResultIsNull}",
-                            invocation.Method.Name, identifier, cacheKey, resultToCache == null ? "null" : "not null");
+                        LogCachingTheResult(_logger, invocation.Method.Name, identifier, cacheKey, resultToCache is null ? "null" : "not null");
                         _memoryCache.Set(cacheKey, invocation.ReturnValue, entryOptions);
                     }
                     else
                     {
-                        _logger.LogWarning("Result for {MethodName} (identifier: {Identifier}) fetched but not cached as no valid expiration was configured.", invocation.Method.Name, identifier);
+                        LogFetchedButNotCachedBecauseExpiration(_logger, invocation.Method.Name, identifier);
                     }
 
-                }, TaskContinuationOptions.ExecuteSynchronously);
+                },  CancellationToken.None,
+                    TaskContinuationOptions.DenyChildAttach,
+                    TaskScheduler.Default);
             }
             else
             {
-                _logger.LogWarning("Method {MethodName} was intercepted but did not return a Task. Caching for non-Task return types is not implemented in this interceptor.", invocation.Method.Name);
+                LogInterceptedButNotReturnedTask(_logger, invocation.Method.Name);
             }
         }
         else
         {
-            _logger.LogTrace("Method {MethodName} does not match caching criteria or arguments are invalid. Proceeding without caching.", invocation.Method.Name);
+            LogCriteriaOrArgumentMisconfiguration(_logger, invocation.Method.Name);
             invocation.Proceed();
         }
     }
