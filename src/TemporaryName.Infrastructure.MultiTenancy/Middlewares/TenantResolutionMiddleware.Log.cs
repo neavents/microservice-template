@@ -9,42 +9,39 @@ public partial class TenantResolutionMiddleware
 {
     private const int ClassId = 90;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
     public const int EvtOptionsNull = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtNoResolutionStrategiesConfigured = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtStoreOptionsNull = BaseEventId + (2 * Logging.IncrementPerLog);
-
-
-    public const int EvtMultiTenancyDisabled = BaseEventId + (10 * Logging.IncrementPerLog);
-    public const int EvtResolutionProcessStarted = BaseEventId + (11 * Logging.IncrementPerLog);
-    public const int EvtAttemptingStrategy = BaseEventId + (12 * Logging.IncrementPerLog);
-    public const int EvtIdentifierFoundByStrategy = BaseEventId + (13 * Logging.IncrementPerLog);
-    public const int EvtStrategyDidNotYieldIdentifier = BaseEventId + (14 * Logging.IncrementPerLog);
-    public const int EvtAttemptingHostMapping = BaseEventId + (15 * Logging.IncrementPerLog);
-    public const int EvtUsingDefaultTenantIdentifier = BaseEventId + (16 * Logging.IncrementPerLog);
-    public const int EvtFetchingTenantInfoFromStore = BaseEventId + (17 * Logging.IncrementPerLog);
-    public const int EvtTenantNotFoundInStore = BaseEventId + (18 * Logging.IncrementPerLog);
-    public const int EvtMisconfiguredDefaultOrMappedNotFound = BaseEventId + (19 * Logging.IncrementPerLog);
-    public const int EvtTenantResolvedSuccessfully = BaseEventId + (20 * Logging.IncrementPerLog);
-    public const int EvtNoIdentifierAllowUnresolved = BaseEventId + (21 * Logging.IncrementPerLog);
-    public const int EvtNoIdentifierResolutionFailedRequired = BaseEventId + (22 * Logging.IncrementPerLog);
-    public const int EvtNoIdentifierProceedNullContext = BaseEventId + (23 * Logging.IncrementPerLog);
-    public const int EvtResolvedTenantNotActive = BaseEventId + (24 * Logging.IncrementPerLog);
-    public const int EvtApplyingDefaultSettings = BaseEventId + (25 * Logging.IncrementPerLog);
-    public const int EvtResolutionCompleteTenantResolved = BaseEventId + (26 * Logging.IncrementPerLog);
-    public const int EvtResolutionCompleteNoTenant = BaseEventId + (27 * Logging.IncrementPerLog);
-    public const int EvtTenantResolutionExceptionCaught = BaseEventId + (28 * Logging.IncrementPerLog);
-    public const int EvtTenantConfigurationExceptionCaught = BaseEventId + (29 * Logging.IncrementPerLog);
-    public const int EvtTenantStoreExceptionCaught = BaseEventId + (30 * Logging.IncrementPerLog);
-    public const int EvtTenantCacheExceptionCaught = BaseEventId + (31 * Logging.IncrementPerLog);
-    public const int EvtMiddlewareUnexpectedError = BaseEventId + (32 * Logging.IncrementPerLog);
+    public const int EvtMultiTenancyDisabled = BaseEventId + (3 * Logging.IncrementPerLog);
+    public const int EvtResolutionProcessStarted = BaseEventId + (4 * Logging.IncrementPerLog);
+    public const int EvtAttemptingStrategy = BaseEventId + (5 * Logging.IncrementPerLog);
+    public const int EvtIdentifierFoundByStrategy = BaseEventId + (6 * Logging.IncrementPerLog);
+    public const int EvtStrategyDidNotYieldIdentifier = BaseEventId + (7 * Logging.IncrementPerLog);
+    public const int EvtAttemptingHostMapping = BaseEventId + (8 * Logging.IncrementPerLog);
+    public const int EvtUsingDefaultTenantIdentifier = BaseEventId + (9 * Logging.IncrementPerLog);
+    public const int EvtFetchingTenantInfoFromStore = BaseEventId + (10 * Logging.IncrementPerLog);
+    public const int EvtTenantNotFoundInStore = BaseEventId + (11 * Logging.IncrementPerLog);
+    public const int EvtMisconfiguredDefaultOrMappedNotFound = BaseEventId + (12 * Logging.IncrementPerLog);
+    public const int EvtTenantResolvedSuccessfully = BaseEventId + (13 * Logging.IncrementPerLog);
+    public const int EvtNoIdentifierAllowUnresolved = BaseEventId + (14 * Logging.IncrementPerLog);
+    public const int EvtNoIdentifierResolutionFailedRequired = BaseEventId + (15 * Logging.IncrementPerLog);
+    public const int EvtNoIdentifierProceedNullContext = BaseEventId + (16 * Logging.IncrementPerLog);
+    public const int EvtResolvedTenantNotActive = BaseEventId + (17 * Logging.IncrementPerLog);
+    public const int EvtApplyingDefaultSettings = BaseEventId + (18 * Logging.IncrementPerLog);
+    public const int EvtResolutionCompleteTenantResolved = BaseEventId + (19 * Logging.IncrementPerLog);
+    public const int EvtResolutionCompleteNoTenant = BaseEventId + (20 * Logging.IncrementPerLog);
+    public const int EvtTenantResolutionExceptionCaught = BaseEventId + (21 * Logging.IncrementPerLog);
+    public const int EvtTenantConfigurationExceptionCaught = BaseEventId + (22 * Logging.IncrementPerLog);
+    public const int EvtTenantStoreExceptionCaught = BaseEventId + (23 * Logging.IncrementPerLog);
+    public const int EvtTenantCacheExceptionCaught = BaseEventId + (24 * Logging.IncrementPerLog);
+    public const int EvtMiddlewareUnexpectedError = BaseEventId + (25 * Logging.IncrementPerLog);
 
 
     [LoggerMessage(
         EventId = EvtOptionsNull,
         Level = LogLevel.Critical,
         Message = "MultiTenancyOptions resolved to null. Middleware cannot operate. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogOptionsNull(ILogger logger, string errorCode, string errorDescription);
+    public static partial void LogOptionsNull(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtNoResolutionStrategiesConfigured,
@@ -56,9 +53,7 @@ public partial class TenantResolutionMiddleware
         EventId = EvtStoreOptionsNull,
         Level = LogLevel.Critical,
         Message = "MultiTenancyOptions.Store is null. Middleware cannot determine how to fetch tenants. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogStoreOptionsNull(ILogger logger, string errorCode, string errorDescription);
-
-    // LoggerMessage Definitions - InvokeAsync
+    public static partial void LogStoreOptionsNull(ILogger logger, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtMultiTenancyDisabled,
@@ -112,13 +107,13 @@ public partial class TenantResolutionMiddleware
         EventId = EvtTenantNotFoundInStore,
         Level = LogLevel.Warning,
         Message = "Tenant with identifier '{TenantIdentifier}' not found in the configured store ({StoreType}). Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogTenantNotFoundInStore(ILogger logger, string tenantIdentifier, TenantStoreType storeType, string errorCode, string errorDescription);
+    public static partial void LogTenantNotFoundInStore(ILogger logger, string tenantIdentifier, TenantStoreType storeType, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtMisconfiguredDefaultOrMappedNotFound,
         Level = LogLevel.Critical,
         Message = "The configured DefaultTenantIdentifier or HostHandling.MapToTenantIdentifier '{TenantIdentifier}' was not found in the store. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMisconfiguredDefaultOrMappedNotFound(ILogger logger, string tenantIdentifier, string errorCode, string errorDescription);
+    public static partial void LogMisconfiguredDefaultOrMappedNotFound(ILogger logger, string tenantIdentifier, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtTenantResolvedSuccessfully,
@@ -136,7 +131,7 @@ public partial class TenantResolutionMiddleware
         EventId = EvtNoIdentifierResolutionFailedRequired,
         Level = LogLevel.Warning,
         Message = "Tenant could not be identified from the request, and no default or host mapping was applicable. Tenant identification is required. Request Path: {RequestPath}. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogNoIdentifierResolutionFailedRequired(ILogger logger, PathString requestPath, string errorCode, string errorDescription);
+    public static partial void LogNoIdentifierResolutionFailedRequired(ILogger logger, PathString requestPath, string errorCode, string? errorDescription);
 
     [LoggerMessage(
         EventId = EvtNoIdentifierProceedNullContext,
@@ -199,5 +194,5 @@ public partial class TenantResolutionMiddleware
         EventId = EvtMiddlewareUnexpectedError,
         Level = LogLevel.Critical,
         Message = "An unexpected error occurred during tenant resolution. Request Path: {RequestPath}. Error Code: {ErrorCode}, Details: {ErrorDescription}")]
-    public static partial void LogMiddlewareUnexpectedError(ILogger logger, PathString requestPath, string errorCode, string errorDescription, Exception ex);
+    public static partial void LogMiddlewareUnexpectedError(ILogger logger, PathString requestPath, string errorCode, string? errorDescription, Exception ex);
 }

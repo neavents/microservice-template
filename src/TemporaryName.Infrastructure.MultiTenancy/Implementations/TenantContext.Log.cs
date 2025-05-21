@@ -8,15 +8,11 @@ public partial class TenantContext
 {
     private const int ClassId = 80;
     private const int BaseEventId = Logging.MultiTenancyBaseEventId + (ClassId * Logging.IncrementPerClass);
-
-    // EventId Definitions
     public const int EvtOverwritingTenantContext = BaseEventId + (0 * Logging.IncrementPerLog);
     public const int EvtClearingTenantContext = BaseEventId + (1 * Logging.IncrementPerLog);
     public const int EvtCurrentTenantSet = BaseEventId + (2 * Logging.IncrementPerLog);
     public const int EvtTenantResolvedButNotActive = BaseEventId + (3 * Logging.IncrementPerLog);
     public const int EvtTenantSetToNull = BaseEventId + (4 * Logging.IncrementPerLog);
-
-    // LoggerMessage Definitions
 
     [LoggerMessage(
         EventId = EvtOverwritingTenantContext,

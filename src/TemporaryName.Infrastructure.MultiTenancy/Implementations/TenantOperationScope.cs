@@ -24,7 +24,7 @@ public partial class TenantOperationScope : ITenantOperationScope
         if (!_disposed)
         {
             _tenantContext.SetCurrentTenant(_previousTenantInfo);
-            _logger.LogInformation("Tenant operation scope disposed. Tenant context restored. Restored Tenant: {RestoredTenantId}, Was Active In Scope: {ActiveTenantId}", _previousTenantInfo?.Id ?? "null", ActiveTenantInfo?.Id ?? "N/A");
+            LogOperationScopeDisposed(_logger, _previousTenantInfo?.Id ?? "null", ActiveTenantInfo?.Id ?? "N/A");
             _disposed = true;
         }
         GC.SuppressFinalize(this);

@@ -36,28 +36,29 @@ public partial class TenantResolutionMiddleware
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
         _next = next;
-        _options = optionsAccessor.CurrentValue; // Options are read once at middleware construction.
+        _options = optionsAccessor.CurrentValue; 
         _tenantContext = tenantContext;
         _strategyProvider = strategyProvider;
         _storeProvider = storeProvider;
         _logger = logger;
 
-        // Validate critical options at startup
-        if (_options == null)
+        if (_options is null)
         {
             Error error = new("MultiTenancy.Middleware.OptionsNull", "MultiTenancyOptions resolved to null. Middleware cannot operate.");
-            _logger.LogCritical(error.Description);
-            throw new TenantConfigurationException(error.Description, error); // Fail fast
+
+            LogOptionsNull(_logger, error.Code, error.Description);
+            throw new TenantConfigurationException(error.Description!, error);
         }
-        if (_options.Enabled && (_options.ResolutionStrategies == null || !_options.ResolutionStrategies.Any()) && string.IsNullOrWhiteSpace(_options.DefaultTenantIdentifier) && string.IsNullOrWhiteSpace(_options.HostHandling.MapToTenantIdentifier))
+        if (_options.Enabled && (_options.ResolutionStrategies is null || _options.ResolutionStrategies.Count == 0) && string.IsNullOrWhiteSpace(_options.DefaultTenantIdentifier) && string.IsNullOrWhiteSpace(_options.HostHandling.MapToTenantIdentifier))
         {
-            _logger.LogWarning("MultiTenancy is enabled, but no resolution strategies are configured, no default tenant identifier is set, and no host mapping is defined. Tenant resolution will likely fail for all requests.");
+            LogNoResolutionStrategiesConfigured(_logger);
         }
-        if (_options.Store == null)
+        if (_options.Store is null)
         {
             Error error = new("MultiTenancy.Middleware.StoreOptionsNull", "MultiTenancyOptions.Store is null. Middleware cannot determine how to fetch tenants.");
-            _logger.LogCritical(error.Description);
-            throw new TenantConfigurationException(error.Description, error);
+
+            LogStoreOptionsNull(_logger, error.Code, error.Description);
+            throw new TenantConfigurationException(error.Description!, error);
         }
     }
 
@@ -67,7 +68,7 @@ public partial class TenantResolutionMiddleware
 
         if (!_options.Enabled)
         {
-            _logger.LogDebug("MultiTenancy is disabled. Skipping tenant resolution.");
+            LogMultiTenancyDisabled(_logger);
             await _next(context);
             return;
         }
@@ -76,103 +77,104 @@ public partial class TenantResolutionMiddleware
         string? tenantIdentifier = null;
         bool identifierFromStrategy = false;
 
-        _logger.LogDebug("Tenant resolution process started for request path: {Path}", context.Request.Path);
+        LogResolutionProcessStarted(_logger, context.Request.Path);
 
         try
         {
-            // 1. Attempt to identify tenant using configured strategies
-            if (_options.ResolutionStrategies != null)
+            if (_options.ResolutionStrategies is not null)
             {
-                // Sort strategies by Order if not already sorted (though typically configured in order)
-                foreach (TenantResolutionStrategyOptions strategyOpt in _options.ResolutionStrategies.Where(s => s.IsEnabled).OrderBy(s => s.Order))
+                var orderedStrategyOptsCol = _options.ResolutionStrategies.Where(s => s.IsEnabled).OrderBy(s => s.Order);
+
+                foreach (TenantResolutionStrategyOptions strategyOpt in orderedStrategyOptsCol)
                 {
-                    _logger.LogDebug("Attempting strategy: {StrategyType} (Order: {Order})", strategyOpt.Type, strategyOpt.Order);
+                    LogAttemptingStrategy(_logger, strategyOpt.Type, strategyOpt.Order);
+
                     ITenantIdentificationStrategy strategy = _strategyProvider.GetStrategy(strategyOpt);
-                    tenantIdentifier = await strategy.IdentifyTenantAsync(context);
+                    tenantIdentifier = await strategy.IdentifyTenantAsync(context).ConfigureAwait(false);
 
                     if (!string.IsNullOrWhiteSpace(tenantIdentifier))
                     {
-                        _logger.LogInformation("Tenant identifier '{Identifier}' found using strategy {StrategyType}.", tenantIdentifier, strategyOpt.Type);
+                        LogIdentifierFoundByStrategy(_logger, tenantIdentifier, strategyOpt.Type);
                         identifierFromStrategy = true;
                         break;
                     }
-                    _logger.LogDebug("Strategy {StrategyType} did not yield an identifier.", strategyOpt.Type);
+                    LogStrategyDidNotYieldIdentifier(_logger, strategyOpt.Type);
                 }
             }
 
-            // 2. If no identifier from strategies, check HostHandlingOptions for mapping
             if (string.IsNullOrWhiteSpace(tenantIdentifier) && !string.IsNullOrWhiteSpace(_options.HostHandling.MapToTenantIdentifier))
             {
-                _logger.LogInformation("No tenant identified by strategies. Attempting to map host request to tenant identifier: '{MapToTenantIdentifier}'.", _options.HostHandling.MapToTenantIdentifier);
+                LogAttemptingHostMapping(_logger, _options.HostHandling.MapToTenantIdentifier);
+
                 tenantIdentifier = _options.HostHandling.MapToTenantIdentifier;
-                identifierFromStrategy = false; // This is a mapped identifier, not directly from a strategy for the current request context
+                identifierFromStrategy = false;
             }
 
-
-            // 3. If still no identifier, try DefaultTenantIdentifier
             if (string.IsNullOrWhiteSpace(tenantIdentifier) && !string.IsNullOrWhiteSpace(_options.DefaultTenantIdentifier))
             {
-                _logger.LogInformation("No tenant identifier from strategies or host mapping. Using DefaultTenantIdentifier: '{DefaultTenantIdentifier}'.", _options.DefaultTenantIdentifier);
+                LogUsingDefaultTenantIdentifier(_logger, _options.DefaultTenantIdentifier);
+
                 tenantIdentifier = _options.DefaultTenantIdentifier;
-                identifierFromStrategy = false; // This is a default
+                identifierFromStrategy = false; 
             }
 
-            // 4. If an identifier was found (from any source), try to fetch ITenantInfo
             if (!string.IsNullOrWhiteSpace(tenantIdentifier))
             {
                 ITenantStore tenantStore = _storeProvider.GetStore(_options.Store);
-                _logger.LogDebug("Attempting to fetch tenant info for identifier '{Identifier}' from store type {StoreType}.", tenantIdentifier, _options.Store.Type);
-                resolvedTenantInfo = await tenantStore.GetTenantByIdentifierAsync(tenantIdentifier);
+                LogFetchingTenantInfoFromStore(_logger, tenantIdentifier, _options.Store.Type);
 
-                if (resolvedTenantInfo == null)
+                resolvedTenantInfo = await tenantStore.GetTenantByIdentifierAsync(tenantIdentifier).ConfigureAwait(false);
+
+                if (resolvedTenantInfo is null)
                 {
                     Error error = new("Tenant.NotFound", $"Tenant with identifier '{tenantIdentifier}' not found in the configured store ({_options.Store.Type}).");
-                    _logger.LogWarning(error.Description);
-                    // If the DefaultTenantIdentifier or MappedHostIdentifier was used and not found, it's a critical misconfiguration.
+                    LogTenantNotFoundInStore(_logger, tenantIdentifier, _options.Store.Type, error.Code, error.Description);
+
                     if (tenantIdentifier == _options.DefaultTenantIdentifier || tenantIdentifier == _options.HostHandling.MapToTenantIdentifier)
                     {
                         Error configError = new("Tenant.Misconfigured.DefaultOrMappedNotFound", $"The configured DefaultTenantIdentifier or HostHandling.MapToTenantIdentifier '{tenantIdentifier}' was not found in the store.");
-                        _logger.LogCritical(configError.Description);
-                        throw new TenantNotFoundException(tenantIdentifier, configError); // More specific
+
+                        LogMisconfiguredDefaultOrMappedNotFound(_logger, tenantIdentifier, error.Code, error.Description);
+                        throw new TenantNotFoundException(tenantIdentifier, configError);
                     }
                     throw new TenantNotFoundException(tenantIdentifier, error);
                 }
-                _logger.LogInformation("Tenant '{TenantId}' (Identifier: '{Identifier}') resolved successfully from store. Status: {TenantStatus}", resolvedTenantInfo.Id, tenantIdentifier, resolvedTenantInfo.Status);
-            }
+
+                LogTenantResolvedSuccessfully(_logger, resolvedTenantInfo.Id, tenantIdentifier, resolvedTenantInfo.Status);
+                }
             else
             {
-                // No identifier found from strategies, no default, no host mapping.
-                // Check if unresolved requests are allowed for host handling.
                 if (_options.HostHandling.AllowUnresolvedRequests)
                 {
-                    _logger.LogInformation("No tenant identifier resolved, and HostHandling.AllowUnresolvedRequests is true. Proceeding with a null tenant context.");
-                    // resolvedTenantInfo remains null
+                    LogNoIdentifierAllowUnresolved(_logger);
                 }
                 else if (_options.ThrowIfTenantMissing)
                 {
                     Error error = new("Tenant.ResolutionFailed.NotIdentified", "Tenant could not be identified from the request, and no default or host mapping was applicable. Tenant identification is required.");
-                    _logger.LogWarning(error.Description + " Request Path: {Path}", context.Request.Path);
-                    throw new TenantResolutionException(error); // General resolution failure
+
+                    LogNoIdentifierResolutionFailedRequired(_logger, context.Request.Path, error.Code, error.Description);
+                    throw new TenantResolutionException(error);
                 }
                 else
                 {
-                    _logger.LogInformation("No tenant identifier resolved, and ThrowIfTenantMissing is false. Proceeding with a null tenant context.");
-                    // resolvedTenantInfo remains null
+                    LogNoIdentifierProceedNullContext(_logger);
                 }
             }
 
-
-            // 5. Validate tenant status if a tenant was resolved
-            if (resolvedTenantInfo != null)
+            if (resolvedTenantInfo is not null)
             {
                 if (resolvedTenantInfo.Status != TenantStatus.Active)
                 {
-                    _logger.LogWarning("Resolved tenant '{TenantId}' is not active. Status: {TenantStatus}.", resolvedTenantInfo.Id, resolvedTenantInfo.Status);
+                    LogResolvedTenantNotActive(_logger, resolvedTenantInfo.Id, resolvedTenantInfo.Status);
+
+                    //TODO
                     // Here, you might have more granular options, e.g., _options.ThrowIfTenantNotActive
                     // For now, let's assume if ThrowIfTenantMissing is true, non-active also means throw,
                     // unless specific exceptions are more appropriate.
                     // This is a critical policy decision. For FAANG-level, explicit failure for non-Active is often default.
-                    if (_options.ThrowIfTenantMissing) // Re-using this flag, could be more specific.
+                    //ACTION REQUIRED TODO
+
+                    if (_options.ThrowIfTenantMissing)
                     {
                         switch (resolvedTenantInfo.Status)
                         {
@@ -183,68 +185,63 @@ public partial class TenantResolutionMiddleware
                             case TenantStatus.Provisioning:
                                 throw new TenantProvisioningIncompleteException(resolvedTenantInfo.Id, new Error("Tenant.Status.Provisioning", $"Access temporarily unavailable: Tenant '{resolvedTenantInfo.Id}' is still provisioning."));
                             case TenantStatus.Archived:
-                                throw new TenantDeactivatedException(resolvedTenantInfo.Id, new Error("Tenant.Status.Archived", $"Access denied: Tenant '{resolvedTenantInfo.Id}' is archived.")); // Similar to deactivated
+                                throw new TenantDeactivatedException(resolvedTenantInfo.Id, new Error("Tenant.Status.Archived", $"Access denied: Tenant '{resolvedTenantInfo.Id}' is archived."));
                             case TenantStatus.Unknown:
                             default:
                                 throw new TenantNotActiveException(resolvedTenantInfo.Id, resolvedTenantInfo.Status.ToString(), new Error("Tenant.Status.NotActive", $"Access denied: Tenant '{resolvedTenantInfo.Id}' is not in an active state (Status: {resolvedTenantInfo.Status})."));
                         }
                     }
-                    // If not throwing, the non-active tenant will be set in the context, and consumers must check.
                 }
 
-                // 6. Apply DefaultTenantSettings (if any)
                 resolvedTenantInfo = ApplyDefaultSettings(resolvedTenantInfo);
             }
 
-            // 7. Set the resolved tenant (or null) in the context
             _tenantContext.SetCurrentTenant(resolvedTenantInfo);
 
-            if (resolvedTenantInfo != null)
+            if (resolvedTenantInfo is not null)
             {
-                _logger.LogInformation("Tenant resolution complete. Current Tenant ID: '{TenantId}', Status: {TenantStatus}. Proceeding with request.", resolvedTenantInfo.Id, resolvedTenantInfo.Status);
+                LogResolutionCompleteTenantResolved(_logger, resolvedTenantInfo.Id, resolvedTenantInfo.Status);
             }
             else
             {
-                _logger.LogInformation("Tenant resolution complete. No tenant resolved. Proceeding with request (null tenant context).");
+                LogResolutionCompleteNoTenant(_logger);
             }
 
         }
-        catch (TenantResolutionException ex) // Catch exceptions specifically from resolution logic or strategies
+        catch (TenantResolutionException ex)
         {
-            _logger.LogError(ex, "TenantResolutionException caught by middleware: {ErrorMessage}. Tenant resolution failed.", ex.ErrorDetails.Description);
-            _tenantContext.SetCurrentTenant(null); // Ensure context is cleared on failure
-                                                   // Depending on API vs UI, you might re-throw to a global handler or return an error response directly.
-                                                   // For now, re-throw to be handled by ASP.NET Core's exception handling.
+            LogTenantResolutionExceptionCaught(_logger, ex.Message, ex);
+            _tenantContext.SetCurrentTenant(null); 
             throw;
         }
         catch (TenantConfigurationException ex)
         {
-            _logger.LogCritical(ex, "TenantConfigurationException caught by middleware: {ErrorMessage}. This indicates a severe misconfiguration.", ex.ErrorDetails.Description);
+            LogTenantConfigurationExceptionCaught(_logger, ex.Message, ex);
             _tenantContext.SetCurrentTenant(null);
-            throw; // Critical configuration errors should likely stop the request processing.
+            throw; 
         }
-        catch (TenantStoreException ex) // Covers StoreUnavailable, QueryFailed, Deserialization from stores
+        catch (TenantStoreException ex)
         {
-            _logger.LogError(ex, "TenantStoreException caught by middleware: {ErrorMessage}. Failed to retrieve tenant from store.", ex.ErrorDetails.Description);
+            LogTenantStoreExceptionCaught(_logger, ex.Message, ex);
             _tenantContext.SetCurrentTenant(null);
             throw;
         }
         catch (TenantCacheException ex)
         {
-            _logger.LogError(ex, "TenantCacheException caught by middleware: {ErrorMessage}. Error interacting with tenant cache.", ex.ErrorDetails.Description);
+            LogTenantCacheExceptionCaught(_logger, ex.Message, ex);
             _tenantContext.SetCurrentTenant(null);
             // Policy: if cache fails, do we try to proceed without cache or fail request?
             // Current CachingTenantStoreDecorator throws if cache fails, so this will be caught.
             // If it were to fallback, this catch might not be hit for the original store error.
             throw;
         }
-        catch (Exception ex) // Catch-all for truly unexpected errors in the middleware
+        catch (Exception ex) 
         {
             Error error = new("Tenant.Middleware.UnexpectedError", "An unexpected error occurred during tenant resolution.");
-            _logger.LogCritical(ex, error.Description + " Request Path: {Path}", context.Request.Path);
+            LogMiddlewareUnexpectedError(_logger, context.Request.Path, error.Code, error.Description, ex);
             _tenantContext.SetCurrentTenant(null);
 
-            throw new VagueMultiTenancyException(error.Description, error, ex);
+            throw new VagueMultiTenancyException(error.Description!, error, ex);
         }
 
         await _next(context);
@@ -252,11 +249,7 @@ public partial class TenantResolutionMiddleware
 
     private ITenantInfo? ApplyDefaultSettings(ITenantInfo tenantInfo)
     {
-        if (_options.DefaultSettings == null) return tenantInfo;
-
-        // This is a bit verbose. In a real scenario, you might use reflection or a mapping library
-        // if there are many properties, or create a new TenantInfo instance by copying and overriding.
-        // For FAANG level, creating a new instance to ensure immutability of the original from store is better.
+        if (_options.DefaultSettings is null) return tenantInfo;
 
         bool settingsApplied = false;
         string? newPreferredLocale = tenantInfo.PreferredLocale ?? _options.DefaultSettings.PreferredLocale;
@@ -295,24 +288,22 @@ public partial class TenantResolutionMiddleware
 
         if (settingsApplied)
         {
-            _logger.LogDebug("Applying default settings to tenant '{TenantId}'. Original: Locale={OL}, TZ={OTZ}, Region={OR}, Tier={OST}, Isolation={ODI}. Defaults: Locale={DL}, TZ={DTZ}, Region={DR}, Tier={DST}, Isolation={DDI}",
-                tenantInfo.Id,
+            LogApplyingDefaultSettings(_logger, tenantInfo.Id,
                 tenantInfo.PreferredLocale, tenantInfo.TimeZoneId, tenantInfo.DataRegion, tenantInfo.SubscriptionTier, tenantInfo.DataIsolationMode,
                 _options.DefaultSettings.PreferredLocale, _options.DefaultSettings.TimeZoneId, _options.DefaultSettings.DataRegion, _options.DefaultSettings.SubscriptionTier, _options.DefaultSettings.DataIsolationMode);
 
-            // Create a new TenantInfo instance with applied defaults to maintain immutability of the original
             return new TenantInfo(
                 tenantInfo.Id,
                 tenantInfo.Name,
                 tenantInfo.ConnectionStringName,
                 tenantInfo.Status,
                 tenantInfo.Domain,
-                newSubscriptionTier ?? tenantInfo.SubscriptionTier, // Prioritize new if set
+                newSubscriptionTier ?? tenantInfo.SubscriptionTier,
                 tenantInfo.BrandingName,
                 tenantInfo.LogoUrl,
-                newDataIsolationMode ?? tenantInfo.DataIsolationMode, // Prioritize new if set
-                tenantInfo.EnabledFeatures.ToList(), // Pass as IEnumerable
-                tenantInfo.CustomProperties.ToDictionary(kv => kv.Key, kv => kv.Value), // Pass as IDictionary
+                newDataIsolationMode ?? tenantInfo.DataIsolationMode,
+                tenantInfo.EnabledFeatures.ToList(), 
+                tenantInfo.CustomProperties.ToDictionary(kv => kv.Key, kv => kv.Value), 
                 newPreferredLocale ?? tenantInfo.PreferredLocale,
                 newTimeZoneId ?? tenantInfo.TimeZoneId,
                 newDataRegion ?? tenantInfo.DataRegion,

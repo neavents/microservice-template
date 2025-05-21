@@ -24,42 +24,29 @@ public partial class TenantContext : ITenantContext
     {
         ITenantInfo? previousTenant = _currentTenantAsyncLocal.Value;
 
-        if (previousTenant != null && tenantInfo != null && previousTenant.Id != tenantInfo.Id)
+        if (previousTenant is not null && tenantInfo is not null && previousTenant.Id != tenantInfo.Id)
         {
-            _logger.LogWarning(
-                "TenantContext: Overwriting an existing tenant context. Previous Tenant ID: '{PreviousTenantId}', New Tenant ID: '{NewTenantId}'. This might be expected during re-evaluation or indicate an issue.",
-                previousTenant.Id,
-                tenantInfo.Id);
+            LogOverwritingTenantContext(_logger, previousTenant.Id, tenantInfo.Id);
         }
-        else if (previousTenant != null && tenantInfo == null)
+        else if (previousTenant is not null && tenantInfo is null)
         {
-            _logger.LogInformation(
-                "TenantContext: Clearing previously set tenant context. Previous Tenant ID: '{PreviousTenantId}'.",
-                previousTenant.Id);
+            LogClearingTenantContext(_logger, previousTenant.Id);
         }
 
         _currentTenantAsyncLocal.Value = tenantInfo;
 
-        if (tenantInfo != null)
+        if (tenantInfo is not null)
         {
-            _logger.LogDebug(
-                "TenantContext: Current tenant set. Tenant ID: '{TenantId}', Status: '{TenantStatus}'. IsActiveAndResolved: {IsActiveAndResolved}",
-                tenantInfo.Id,
-                tenantInfo.Status,
-                IsTenantResolvedAndActive); // Log the derived status too
+            LogCurrentTenantSet(_logger, tenantInfo.Id, tenantInfo.Status, IsTenantResolvedAndActive);
 
             if (tenantInfo.Status != TenantStatus.Active)
             {
-                // This is informational. The consuming code or middleware should decide how to act on non-active tenants.
-                _logger.LogInformation(
-                    "TenantContext: Tenant '{TenantId}' is resolved but its status is '{TenantStatus}'. Access control should be based on this status.",
-                    tenantInfo.Id,
-                    tenantInfo.Status);
+                LogTenantResolvedButNotActive(_logger, tenantInfo.Id, tenantInfo.Status);
             }
         }
         else
         {
-            _logger.LogDebug("TenantContext: Current tenant explicitly set to null.");
+            LogTenantSetToNull(_logger);
         }
     }
 }
