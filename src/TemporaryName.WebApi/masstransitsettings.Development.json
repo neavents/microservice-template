@@ -1,0 +1,113 @@
+{
+  "RabbitMqConnection": {
+    "Host": "localhost", 
+    "VirtualHost": "/",
+    "Username": "guest", 
+    "Password": "guest", 
+    "Port": 5672,        
+    "UseSsl": false,
+    "SslServerName": "", 
+    "SslCertificatePath": "",
+    "SslCertificatePassphrase": "",
+    "SslProtocol": "Tls12", 
+    "RequestedHeartbeat": 30, 
+    "ConnectionTimeout": "00:00:30", 
+    "UseCluster": false 
+  },
+  "RabbitMqGlobalErrorHandling": {
+    "ImmediateRetryCount": 0, 
+    "IncrementalRetryCount": 0, 
+    "IncrementalRetryInitialInterval": "00:00:01", 
+    "IncrementalRetryIntervalStep": "00:00:01",  
+    "ExponentialRetryCount": 0, 
+    "ExponentialMinInterval": "00:00:01",
+    "ExponentialMaxInterval": "00:00:01",
+    "ExponentialIntervalDelta": "00:00:01",
+    "DelayedRedeliveryIntervals": [ 
+      "00:01:00", 
+      "00:05:00", 
+      "00:15:00", 
+      "01:00:00"  
+    ],
+    "UseExceptionFilters": true, 
+    "IgnoredExceptionTypesForRetry": [ 
+      "System.ArgumentNullException",
+      "System.ArgumentException"
+    ],
+    "HandledExceptionTypesForRetry": []
+  },
+  "RabbitMqEndpointDefaults": { 
+    "ConsumerRetry": { 
+      "Strategy": "Incremental", 
+      "RetryLimit": 5,
+      "IntervalScheduleMs": [100, 500, 1000, 2000, 5000],
+      "IncrementalInitialIntervalMs": 200,
+      "IncrementalIntervalIncrementMs": 500,
+      "ExponentialMinIntervalMs": 100,
+      "ExponentialMaxIntervalMs": 60000,
+      "ExponentialFactor": 2.0,
+      "PollyPolicyName": null,
+      "HandleExceptionTypes": [
+        "System.Net.Http.HttpRequestException", 
+        "Npgsql.NpgsqlException" 
+      ],
+      "IgnoreExceptionTypes": [
+        "YourProject.Domain.ValidationException",
+        "System.ArgumentNullException" 
+      ]
+    }
+  },
+  "RabbitMqEndpointRetryOverrides": {
+    "your-first-consumer-queue": {
+      "Strategy": "Immediate",
+      "RetryLimit": 3,
+      "HandleExceptionTypes": ["System.TimeoutException"],
+      "IgnoreExceptionTypes": [] 
+    },
+    "critical-event-processor": {
+      "Strategy": "Exponential",
+      "RetryLimit": 7,
+      "ExponentialMinIntervalMs": 500,
+      "ExponentialMaxIntervalMs": 120000, 
+      "ExponentialFactor": 2.5,
+      "HandleExceptionTypes": ["Npgsql.NpgsqlException", "System.IO.IOException"],
+      "IgnoreExceptionTypes": ["System.InvalidOperationException"]
+    }
+  },
+  "RabbitMqEndpointConcurrency": {
+    "ConcurrentMessageLimit": 16, 
+    "PrefetchCount": 20           
+  },
+  "RabbitMqEndpointCircuitBreaker": {
+    "Enabled": true,
+    "TrackingPeriod": "00:01:00", 
+    "TripThreshold": 15,          
+    "ActiveThreshold": 10,        
+    "ResetInterval": "00:05:00"   
+  },
+  "RabbitMqEndpointRateLimiter": {
+    "Enabled": false, 
+    "MessageLimit": 100,
+    "Interval": "00:00:01" 
+  },
+  "RabbitMqEndpointConsumerOutbox": { 
+    "Enabled": true 
+  },
+  "RabbitMqEndpointConsumerTimeout": {
+    "Enabled": true,
+    "Timeout": "00:00:30" 
+  },
+  "RabbitMqEndpointQuorumQueues": {
+    "DeclareAllAsQuorum": false, 
+    "SpecificQuorumEndpoints": [],
+    "QuorumEndpointSuffix": "", 
+    "DeliveryLimit": 10         
+  },
+  "RabbitMqHealthCheck": {
+    "Enabled": true,
+    "Name": "rabbitmq-bus-connectivity",
+    "FailureStatus": "Unhealthy", 
+    "Tags": [ "messaging", "rabbitmq", "infrastructure" ],
+    "Timeout": "00:00:30" 
+  }
+}

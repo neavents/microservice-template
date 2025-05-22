@@ -1,4 +1,5 @@
 using MassTransit;
+using Microsoft.Extensions.DependencyInjection; // For IServiceProvider
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -8,22 +9,25 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf; // For IMessage
+using Google.Protobuf;
 using TemporaryName.Application.Contracts.Abstractions.Messaging;
-using TemporaryName.Domain.Primitives.DomainEvent;
-// Example: Your POCO Domain Event
-// namespace TemporaryName.Domain.Orders.Events { public record OrderCreatedDomainEvent(string OrderId, string CustomerId, DateTime OrderDate, double TotalAmount) : IDomainEvent; }
-// Example: Your Protobuf Integration Event (generated from .proto)
-// using TemporaryName.SharedContracts.Protobuf.IntegrationEvents.V1;
+using TemporaryName.Domain.Primitives.DomainEvent; // Your IDomainEvent
+using TemporaryName.Infrastructure.Messaging.MassTransit.Contracts; // For IEventMapper
+using TemporaryName.Infrastructure.Messaging.MassTransit.Exceptions;
+using TemporaryName.Domain.Primitives.Contextual; // For MessagingConfigurationException
 
 namespace TemporaryName.Infrastructure.Messaging.MassTransit.Publishers;
 
-public class MassTransitIntegrationEventPublisher : IIntegrationEventPublisher
+public partial class MassTransitIntegrationEventPublisher : IIntegrationEventPublisher
 {
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<MassTransitIntegrationEventPublisher> _logger;
-    private readonly ConcurrentDictionary<string, Type> _domainEventTypeMap; // Maps FQN string to POCO DomainEvent Type
-    private readonly ConcurrentDictionary<Type, Func<IDomainEvent, IMessage>> _pocoToProtoMappers; // Maps POCO Type to a Protobuf mapping function
+    private readonly IServiceProvider _serviceProvider;
+
+    // Cache for mapping POCO FQN string to its .NET Type
+    private static readonly ConcurrentDictionary<string, Type> _pocoDomainEventTypeMap = new();
+    // Cache for mapping POCO Type to a delegate that resolves and uses the specific IEventMapper<TPoco, TProto>
+    private static readonly ConcurrentDictionary<Type, Func<IDomainEvent, IServiceProvider, IMessage>> _pocoToProtoMapperDelegates = new();
 
     private static bool _typesScannedAndMapped = false;
     private static readonly object _scanLock = new();
@@ -32,173 +36,257 @@ public class MassTransitIntegrationEventPublisher : IIntegrationEventPublisher
     public MassTransitIntegrationEventPublisher(
         IPublishEndpoint publishEndpoint,
         ILogger<MassTransitIntegrationEventPublisher> logger,
-        IServiceProvider serviceProvider) // For resolving mappers if registered in DI
+        IServiceProvider serviceProvider,
+        params Assembly[]? assembliesToScanForMappers) // Optionally pass assemblies, or rely on AppDomain.CurrentDomain
     {
         _publishEndpoint = publishEndpoint ?? throw new ArgumentNullException(nameof(publishEndpoint));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _domainEventTypeMap = new ConcurrentDictionary<string, Type>();
-        _pocoToProtoMappers = new ConcurrentDictionary<Type, Func<IDomainEvent, IMessage>>();
-        _jsonSerializerOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _jsonSerializerOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, WriteIndented = false };
 
-        ScanAndMapEventTypesOnce(serviceProvider);
+        // Ensure assembliesToScanForMappers includes assemblies where IDomainEvent and IEventMapper implementations reside.
+        // If null or empty, it will scan AppDomain.CurrentDomain assemblies matching certain prefixes.
+        ScanAndMapEventTypesOnce(serviceProvider, assembliesToScanForMappers);
     }
 
-    // Example POCO Domain Event (adjust to your actual domain events)
-    // This should ideally be in your Domain layer or Application.Contracts if it's a DTO.
-    // For this example, I'll define a conceptual one.
-    // Assume: namespace TemporaryName.Domain.Events { public record SampleOrderCreatedDomainEvent(string OrderId, string CustomerId, DateTime Timestamp, decimal Amount) : IDomainEvent; }
-
-    private void ScanAndMapEventTypesOnce(IServiceProvider serviceProvider)
+    private void ScanAndMapEventTypesOnce(IServiceProvider serviceProvider, Assembly[]? explicitAssembliesToScan)
     {
         if (_typesScannedAndMapped) return;
         lock (_scanLock)
         {
             if (_typesScannedAndMapped) return;
 
-            _logger.LogInformation("MassTransitIntegrationEventPublisher: Scanning for IDomainEvent POCOs and their Protobuf mappers...");
+            LogMappingScanStarted(_logger);
 
-            // 1. Scan for IDomainEvent implementations (POCOs)
-            // (Same scanning logic as before for _domainEventTypeMap)
-            List<Type> domainEventPocoTypes = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(asm => !asm.IsDynamic &&
-                              (asm.FullName?.StartsWith("TemporaryName.Domain", StringComparison.OrdinalIgnoreCase) == true ||
-                               asm.FullName?.StartsWith("TemporaryName.Application", StringComparison.OrdinalIgnoreCase) == true || // Include Application for event DTOs
-                               asm.FullName?.StartsWith(Assembly.GetEntryAssembly()?.GetName().Name ?? "ENTRY_ASSEMBLY_FALLBACK", StringComparison.OrdinalIgnoreCase) == true))
+            var assembliesToScan = explicitAssembliesToScan?.Any() == true
+                ? explicitAssembliesToScan.ToList()
+                : AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(asm => !asm.IsDynamic &&
+                                  (asm.FullName?.StartsWith("TemporaryName.Domain", StringComparison.OrdinalIgnoreCase) == true ||
+                                   asm.FullName?.StartsWith("TemporaryName.Application", StringComparison.OrdinalIgnoreCase) == true ||
+                                   asm.FullName?.StartsWith("TemporaryName.Infrastructure", StringComparison.OrdinalIgnoreCase) == true || // For mappers in Infrastructure
+                                   asm.FullName?.StartsWith(Assembly.GetEntryAssembly()?.GetName().Name ?? "ENTRY_ASSEMBLY_FALLBACK", StringComparison.OrdinalIgnoreCase) == true))
+                    .ToList();
+
+            if (!assembliesToScan.Any())
+            {
+                LogNoAssembliesFoundForScan(_logger, explicitAssembliesToScan?.Any() == true ? "explicitly provided" : "AppDomain heuristics");
+                _typesScannedAndMapped = true; // Mark as scanned to prevent re-scans, even if nothing found.
+                return;
+            }
+
+            LogFoundAssembliesForScan(_logger, string.Join(", ", assembliesToScan.Select(a => a.GetName().Name)));
+
+            var allRelevantTypesFromAssemblies = assembliesToScan
                 .SelectMany(SafeGetTypes)
-                .Where(t => t != null && typeof(IDomainEvent).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract && !typeof(IMessage).IsAssignableFrom(t)) // Ensure it's not already a Proto message
+                .Where(t => t != null) // Ensure t is not null before further processing
                 .ToList();
 
-            foreach (Type pocoType in domainEventPocoTypes)
+
+            // 1. Discover POCO IDomainEvent implementations
+            var pocoDomainEventTypes = allRelevantTypesFromAssemblies
+                .Where(t => typeof(IDomainEvent).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract && !typeof(IMessage).IsAssignableFrom(t))
+                .ToList();
+
+            foreach (Type pocoType in pocoDomainEventTypes)
             {
                 if (pocoType.FullName != null)
                 {
-                    _domainEventTypeMap.TryAdd(pocoType.FullName, pocoType);
-                    _logger.LogDebug("Mapped POCO Event FQN '{PocoFqn}' to .NET Type '{PocoType}'.", pocoType.FullName, pocoType.Name);
+                    _pocoDomainEventTypeMap.TryAdd(pocoType.FullName, pocoType);
+                    LogPocoEventTypeDiscovered(_logger, pocoType.FullName);
+                }
+                else
+                {
+                    LogPocoEventTypeDiscoveredWithNullFullName(_logger, pocoType.Name);
+                }
+            }
 
-                    // 2. Discover and register mappers (POCO DomainEvent -> Protobuf IntegrationEvent)
-                    // Convention: Look for a static `ToIntegrationEventProto` method on the POCO,
-                    // or a dedicated mapper class resolvable via IServiceProvider, or attribute-based.
-                    // For simplicity, let's assume a convention or manual registration here.
-                    // Example: Manually register a mapper for a specific POCO event to its Protobuf counterpart
-                    if (pocoType.Name == "OrderCreatedDomainEvent") // Replace with actual POCO event type
+            // 2. Discover and prepare IEventMapper<TDomain, TProto> implementations
+            var mapperImplementationTypes = allRelevantTypesFromAssemblies
+                .Where(t => !t.IsAbstract && !t.IsInterface && t.GetInterfaces()
+                    .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventMapper<,>)))
+                .ToList();
+
+            foreach (Type mapperImplType in mapperImplementationTypes)
+            {
+                var mapperInterfaces = mapperImplType.GetInterfaces()
+                    .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventMapper<,>));
+
+                foreach (var mapperInterface in mapperInterfaces)
+                {
+                    Type domainEventType = mapperInterface.GetGenericArguments()[0];
+                    Type integrationEventType = mapperInterface.GetGenericArguments()[1]; // This is TIntegrationEvent : IMessage
+
+                    if (!typeof(IDomainEvent).IsAssignableFrom(domainEventType))
                     {
-                        // This assumes you have a POCO OrderCreatedDomainEvent and a corresponding
-                        // TemporaryName.SharedContracts.Protobuf.IntegrationEvents.V1.OrderCreatedIntegrationEvent
-                        _pocoToProtoMappers.TryAdd(pocoType, domainEvent =>
-                        {
-                            // var poco = (TemporaryName.Domain.Orders.Events.OrderCreatedDomainEvent)domainEvent; // Cast to actual POCO type
-                            // return new TemporaryName.SharedContracts.Protobuf.IntegrationEvents.V1.OrderCreatedIntegrationEvent
-                            // {
-                            // OrderId = poco.OrderId,
-                            // CustomerId = poco.CustomerId,
-                            // OrderDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(poco.OrderDate.ToUniversalTime()),
-                            // TotalAmountValue = (double)poco.TotalAmount // Example conversion
-                            // Add items mapping if applicable
-                            // };
-                            _logger.LogWarning("Placeholder mapper used for {PocoType}. Implement actual mapping.", pocoType.FullName);
-                            // Fallback to a generic wrapper if no specific mapper (NOT recommended for production)
-                            // This requires a generic Protobuf message like GenericIntegrationEvent { string type; string data; }
-                            // For robust typing, explicit mappers are key.
-                            throw new NotImplementedException($"Mapper not implemented for {pocoType.FullName} to its Protobuf integration event.");
-                        });
-                         _logger.LogInformation("Registered placeholder Protobuf mapper for POCO type {PocoType}", pocoType.Name);
+                        LogInvalidMapperDomainType(_logger, mapperInterface.FullName ?? mapperImplType.Name, domainEventType.FullName ?? "Unknown");
+                        continue;
                     }
-                    // You would need to add mappers for all your domain events that go on the bus.
-                    // These could be discovered via reflection for classes implementing IEventMapper<TDomainEvent, TProtoEvent>
-                    // and resolved using IServiceProvider.
+                    if (!typeof(IMessage).IsAssignableFrom(integrationEventType))
+                    {
+                        LogInvalidMapperIntegrationType(_logger, mapperInterface.FullName ?? mapperImplType.Name, integrationEventType.FullName ?? "Unknown");
+                        continue;
+                    }
+
+                    // Create a delegate that resolves the mapper from DI and calls its Map method
+                    _pocoToProtoMapperDelegates.TryAdd(domainEventType, (domainEvent, sp) =>
+                    {
+                        var resolvedMapper = sp.GetService(mapperInterface);
+                        if (resolvedMapper == null)
+                        {
+                            LogEventMapperNotResolvedFromDI(_logger, mapperInterface.FullName ?? "UnknownMapper", domainEventType.FullName ?? "UnknownPoco");
+                            throw new MessagingConfigurationException(
+                                $"Event mapper '{mapperInterface.FullName}' for domain event '{domainEventType.FullName}' could not be resolved from DI. Ensure it is registered.",
+                                "MAPPER_NOT_REGISTERED");
+                        }
+
+                        var mapMethod = mapperInterface.GetMethod("Map", new[] { domainEventType });
+                        if (mapMethod == null)
+                        {
+                            LogEventMapMethodNotFoundOnMapper(_logger, mapperInterface.FullName ?? "UnknownMapper", domainEventType.FullName ?? "UnknownPoco");
+                            throw new MissingMethodException($"CRITICAL: 'Map' method not found on mapper '{mapperInterface.FullName}' for domain event '{domainEventType.FullName}'. This indicates a problem with the IEventMapper interface or implementation.");
+                        }
+
+                        try
+                        {
+                            var mappedProtoEvent = mapMethod.Invoke(resolvedMapper, new[] { domainEvent }) as IMessage;
+                            if (mappedProtoEvent == null)
+                            {
+                                LogEventMappingExecutionReturnedNull(_logger, mapperInterface.FullName ?? "UnknownMapper", domainEventType.FullName ?? "UnknownPoco");
+                                throw new InvalidOperationException($"Execution of 'Map' method on mapper '{mapperInterface.FullName}' for domain event '{domainEventType.FullName}' returned null. Mapped Protobuf event cannot be null.");
+                            }
+                            return mappedProtoEvent;
+                        }
+                        catch(TargetInvocationException tie) when (tie.InnerException != null)
+                        {
+                            LogEventMappingExecutionThrewException(_logger, mapperInterface.FullName ?? "UnknownMapper", domainEventType.FullName ?? "UnknownPoco", tie.InnerException);
+                            throw tie.InnerException; // Re-throw the actual exception from the mapper
+                        }
+                        catch (Exception ex)
+                        {
+                            LogEventMappingExecutionThrewException(_logger, mapperInterface.FullName ?? "UnknownMapper", domainEventType.FullName ?? "UnknownPoco", ex);
+                            throw; // Re-throw if not TargetInvocationException
+                        }
+                    });
+                    LogEventMapperDelegateRegistered(_logger, mapperInterface.FullName ?? mapperImplType.Name, domainEventType.Name, integrationEventType.Name);
                 }
             }
             _typesScannedAndMapped = true;
-            _logger.LogInformation("Finished scanning for POCO events and mappers. Found {PocoCount} POCO event types.", _domainEventTypeMap.Count);
+            LogMappingScanCompleted(_logger, _pocoDomainEventTypeMap.Count, _pocoToProtoMapperDelegates.Count);
         }
     }
 
     private IEnumerable<Type> SafeGetTypes(Assembly assembly)
     {
-        try { return assembly.GetTypes(); }
+        try
+        {
+            return assembly.GetTypes();
+        }
         catch (ReflectionTypeLoadException ex)
         {
-            _logger.LogWarning("Could not load types from {AssemblyName}: {LoaderErrors}",
-                assembly.FullName, string.Join(", ", ex.LoaderExceptions.Select(e => e?.Message)));
+            LogTypeLoadErrorDuringScan(_logger, assembly.FullName ?? "UnknownAssembly", ex);
+            if (ex.LoaderExceptions != null)
+            {
+                foreach (var loaderEx in ex.LoaderExceptions.Where(e => e != null))
+                {
+                    LogIndividualLoaderExceptionDetail(_logger, assembly.FullName ?? "UnknownAssembly", loaderEx!.GetType().Name, loaderEx.Message, loaderEx);
+                }
+            }
             return Type.EmptyTypes;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error getting types from assembly {AssemblyName}", assembly.FullName);
+            LogGenericAssemblyScanError(_logger, assembly.FullName ?? "UnknownAssembly", ex);
             return Type.EmptyTypes;
         }
     }
 
-
     public async Task PublishAsync(
-        string eventTypeName, // This is the FQN of the POCO Domain Event
-        string payload,       // JSON of the POCO Domain Event
+        string eventTypeName,
+        string payload,
         IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken)
     {
-        if (!_domainEventTypeMap.TryGetValue(eventTypeName, out Type? pocoDomainEventType))
+        LogPublishAttempt(_logger, eventTypeName, payload.Length, headers.Count);
+
+        if (!_pocoDomainEventTypeMap.TryGetValue(eventTypeName, out Type? pocoDomainEventType))
         {
-            _logger.LogError("Unknown POCO domain event type string '{EventTypeFqn}'. Cannot map to .NET Type for JSON deserialization.", eventTypeName);
-            throw new InvalidOperationException($"Unmapped POCO domain event type FQN: {eventTypeName}.");
+            LogUnknownPocoEventTypeForPublish(_logger, eventTypeName);
+            throw new ArgumentException($"Unknown POCO domain event type FQN: '{eventTypeName}'. This event type was not discovered during startup. Ensure it implements IDomainEvent and its assembly is scanned.", nameof(eventTypeName));
         }
 
-        IDomainEvent? deserializedPocoEvent;
+        IDomainEvent deserializedPocoEvent;
         try
         {
-            deserializedPocoEvent = JsonSerializer.Deserialize(payload, pocoDomainEventType, _jsonSerializerOptions) as IDomainEvent;
+            var deserializedObject = JsonSerializer.Deserialize(payload, pocoDomainEventType, _jsonSerializerOptions);
+            if (deserializedObject is not IDomainEvent tempEvent) // Also handles null check
+            {
+                 LogDeserializationResultedInNullOrWrongType(_logger, eventTypeName, pocoDomainEventType.FullName ?? "N/A", deserializedObject?.GetType().FullName);
+                 throw new InvalidOperationException($"JSON payload for POCO EventType '{eventTypeName}' deserialized to null or an incompatible type. Expected {typeof(IDomainEvent)}.");
+            }
+            deserializedPocoEvent = tempEvent;
         }
         catch (JsonException jsonEx)
         {
-            _logger.LogError(jsonEx, "Failed to deserialize JSON payload for POCO EventType '{EventTypeFqn}' to .NET type '{NetType}'.",
-                             eventTypeName, pocoDomainEventType.FullName);
-            throw;
+            LogDeserializationFailedDuringPublish(_logger, eventTypeName, pocoDomainEventType.FullName ?? "N/A", payload.Substring(0, Math.Min(payload.Length, 200)), jsonEx);
+            throw new ArgumentException($"Failed to deserialize JSON payload for POCO EventType '{eventTypeName}' to .NET type '{pocoDomainEventType.FullName}'. Check payload structure and content. Error: {jsonEx.Message}", nameof(payload), jsonEx);
         }
 
-        if (deserializedPocoEvent is null)
+        LogPocoEventDeserializedForPublish(_logger, pocoDomainEventType.FullName ?? "N/A", deserializedPocoEvent.Id, deserializedPocoEvent.OccurredOn);
+
+        if (!_pocoToProtoMapperDelegates.TryGetValue(pocoDomainEventType, out var mapperDelegate))
         {
-            _logger.LogError("JSON payload for POCO EventType '{EventTypeFqn}' deserialized to null.", eventTypeName);
-            throw new InvalidOperationException($"Deserialized POCO domain event was null for type {pocoDomainEventType.FullName}.");
+            LogProtobufMapperDelegateNotFoundForPublish(_logger, pocoDomainEventType.FullName ?? "N/A");
+            throw new MessagingConfigurationException(
+                $"Protobuf mapper delegate not found for POCO domain event type '{pocoDomainEventType.FullName}'. This is a critical configuration error; ensure an IEventMapper<TDomain, TProto> is implemented, registered in DI, and its assembly is scanned by the publisher.",
+                "MAPPER_DELEGATE_MISSING");
         }
 
-        // Now, map the POCO domain event to its corresponding Protobuf IMessage
-        if (!_pocoToProtoMappers.TryGetValue(pocoDomainEventType, out Func<IDomainEvent, IMessage>? mapperFunc))
+        IMessage protobufIntegrationEvent;
+        Type protobufMessageType;
+        try
         {
-            _logger.LogError("No Protobuf mapper registered for POCO domain event type '{PocoType}'. Cannot publish to MassTransit with Protobuf.", pocoDomainEventType.FullName);
-            throw new InvalidOperationException($"Protobuf mapper not found for {pocoDomainEventType.FullName}.");
+            protobufIntegrationEvent = mapperDelegate(deserializedPocoEvent, _serviceProvider); // Pass IServiceProvider
+            protobufMessageType = protobufIntegrationEvent.GetType();
+            LogProtobufEventMappedSuccessfully(_logger, pocoDomainEventType.FullName ?? "N/A", protobufMessageType.FullName ?? "N/A");
+        }
+        catch (Exception mapEx)
+        {
+            LogEventMappingExecutionFailedDuringPublish(_logger, pocoDomainEventType.FullName ?? "N/A", mapEx);
+            throw new InvalidOperationException($"Error executing Protobuf mapper for POCO event type '{pocoDomainEventType.FullName}'. See inner exception for details.", mapEx);
         }
 
-        IMessage protobufIntegrationEvent = mapperFunc(deserializedPocoEvent);
-        Type protobufMessageType = protobufIntegrationEvent.GetType(); // Get the actual Protobuf message type
+        LogPublishingToMassTransitEndpoint(_logger, protobufMessageType.FullName ?? "N/A", deserializedPocoEvent.Id);
 
-        _logger.LogInformation("Publishing Protobuf integration event of type {ProtoType} (mapped from POCO {PocoType}) via MassTransit...",
-                             protobufMessageType.FullName, pocoDomainEventType.FullName);
-
-        // MassTransit will use its configured Protobuf serializer for 'protobufIntegrationEvent'.
-        await _publishEndpoint.Publish(protobufIntegrationEvent, protobufMessageType, sendContext =>
+        try
         {
-            foreach (KeyValuePair<string, string> headerEntry in headers)
+            await _publishEndpoint.Publish(protobufIntegrationEvent, protobufMessageType, sendContext =>
             {
-                if (headerEntry.Key.Equals("CorrelationId", StringComparison.OrdinalIgnoreCase) &&
-                    Guid.TryParse(headerEntry.Value, out Guid correlationGuid))
+                sendContext.MessageId = deserializedPocoEvent.Id; // Use domain event's ID for traceability
+                if (headers.TryGetValue("CorrelationId", StringComparison.OrdinalIgnoreCase) &&
+                    Guid.TryParse(headers["CorrelationId"], out Guid correlationGuid))
                 {
                     sendContext.CorrelationId = correlationGuid;
                 }
-                else
+                else if (deserializedPocoEvent is ICorrelated correlatedEvent && correlatedEvent.CorrelationId != default)
+                {
+                     sendContext.CorrelationId = correlatedEvent.CorrelationId;
+                }
+                // else, MassTransit will generate one if not set
+
+                foreach (var headerEntry in headers.Where(h => !h.Key.Equals("CorrelationId", StringComparison.OrdinalIgnoreCase)))
                 {
                     sendContext.Headers.Set(headerEntry.Key, headerEntry.Value);
                 }
-            }
-            // Set MessageId from original event if available and desired, or let MassTransit generate one.
-            // if (headers.TryGetValue("X-Original-Event-Id", out string originalEventId) && Guid.TryParse(originalEventId, out Guid eventIdGuid))
-            // {
-            //    sendContext.MessageId = eventIdGuid;
-            // }
+                LogMassTransitSendContextConfiguredForPublish(_logger, sendContext.MessageId, protobufMessageType.FullName ?? "N/A", sendContext.CorrelationId);
+            }, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug("Publishing Protobuf event {EventId} of type {ProtoType} with CorrelationId {CorrelationId}",
-                sendContext.MessageId, protobufMessageType.FullName, sendContext.CorrelationId);
-
-        }, cancellationToken).ConfigureAwait(false);
-
-        _logger.LogInformation("Protobuf Integration Event {ProtoType} published to MassTransit.", protobufMessageType.FullName);
+            LogPublishSucceededToMassTransit(_logger, protobufMessageType.FullName ?? "N/A", deserializedPocoEvent.Id, _publishEndpoint.GetType().Name);
+        }
+        catch (Exception publishEx)
+        {
+            LogPublishFailedToMassTransit(_logger, protobufMessageType.FullName ?? "N/A", deserializedPocoEvent.Id, publishEx);
+            throw; // Re-throw to allow outbox or higher-level error handling.
+        }
     }
 }

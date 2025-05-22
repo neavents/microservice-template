@@ -14,8 +14,4 @@ public class DeadLetterStrategyOptions
     /// </summary>
     public RabbitMqDeadLetterOptions RabbitMq { get; set; } = new();
 
-    /// <summary>
-    /// Options specific to Kafka dead-lettering (typically forwarding to a Dead Letter Topic).
-    /// </summary>
-    public KafkaDeadLetterTopicOptions Kafka { get; set; } = new();
 }
