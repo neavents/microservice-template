@@ -1,0 +1,33 @@
+{
+  "CachingProviders": {
+    "ActiveProviders": ["Redis", "Memcached"],
+    "DefaultProvider": "Redis",
+    "MultiProviderStrategy": "Fallback"
+  },
+  "Caching": {
+    "Redis": {
+      "ConnectionString": "localhost:6379",
+      "AllowUntrustedCertificate": false,
+      "InstanceName": "TemporaryName_R_",
+      "Ssl": true,
+      "DefaultSlidingExpiration": "00:20:00",
+      "DefaultAbsoluteExpirationRelativeToNow": "01:00:00"
+    },
+    "Memcached": {
+      "Servers": [
+        "localhost:11211"
+      ],
+      "InstanceName": "TemporaryName_M_",
+      "Username": "", 
+      "Password": "", 
+      "UseSslEndpoints": true,
+      "DefaultExpirationSeconds": 1800 
+    },
+    "Garnet": {
+      "ConnectionString": "127.0.0.1:3278",
+      "InstanceName": "TemporaryName_G_",
+      "DefaultSlidingExpiration": "00:15:00",
+      "DefaultAbsoluteExpirationRelativeToNow": "00:45:00"
+    }
+  }
+}

@@ -52,7 +52,7 @@
         "Npgsql.NpgsqlException" 
       ],
       "IgnoreExceptionTypes": [
-        "YourProject.Domain.ValidationException",
+        "TemporaryName.Domain.Exceptions.ValidationException",
         "System.ArgumentNullException" 
       ]
     }

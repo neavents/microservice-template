@@ -5,11 +5,13 @@ namespace TemporaryName.WebApi.Configurators;
 internal static class SettingsConfigurator
 {
     public const string MassTransitFileName = "masstransitsettings";
+    public const string CachingFileName = "cachingsettings";
 
     public static WebApplicationBuilder LoadAndConfigureSettings(this WebApplicationBuilder builder)
     {
         AddJsonFile(builder, MassTransitFileName, envDepended: true);
-
+        AddJsonFile(builder, CachingFileName, envDepended: true);
+        
         return builder;
     }
 

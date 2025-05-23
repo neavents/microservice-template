@@ -6,22 +6,18 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
+<ItemGroup>
+    <PackageReference Include="EnyimMemcachedCore" />
     <PackageReference Include="Autofac" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-    <PackageReference Include="StackExchange.Redis" />
-  </ItemGroup>
+</ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Abstractions\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
-    <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Abstractions\TemporaryName.Infrastructure.Caching.Abstractions.csproj" />
-  </ItemGroup>
+<ItemGroup>
+  <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
+  <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Abstractions\TemporaryName.Infrastructure.Caching.Abstractions.csproj" />
+</ItemGroup>
 
 </Project>

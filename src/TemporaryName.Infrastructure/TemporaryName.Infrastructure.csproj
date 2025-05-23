@@ -26,6 +26,7 @@
     <ProjectReference Include="../TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL/TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Persistence.Seeding/TemporaryName.Infrastructure.Persistence.Seeding.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Security.Auth.Keycloak/TemporaryName.Infrastructure.Security.Auth.Keycloak.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Memcached\TemporaryName.Infrastructure.Caching.Memcached.csproj" />
   </ItemGroup>
 
 </Project>

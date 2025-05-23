@@ -27,6 +27,7 @@
     <ProjectReference Include="../TemporaryName.Infrastructure.Hosting.Extensions/TemporaryName.Infrastructure.Hosting.Extensions.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Security.Authorization/TemporaryName.Infrastructure.Security.Authorization.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure/TemporaryName.Infrastructure.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Memcached\TemporaryName.Infrastructure.Caching.Memcached.csproj" />
   </ItemGroup>
 
 </Project>
