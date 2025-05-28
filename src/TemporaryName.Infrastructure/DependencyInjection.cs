@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using TemporaryName.Infrastructure.Caching.Memcached;
 using TemporaryName.Infrastructure.Caching.Redis;
 using TemporaryName.Infrastructure.ChangeDataCapture.Debezium;
 using TemporaryName.Infrastructure.Configuration;
@@ -37,6 +38,7 @@ public static class DependencyInjection
 
     private static IServiceCollection AddCachingLayer(this IServiceCollection services){
         services.AddInfrastructureCachingRedis();
+        services.AddInfrastructureCachingMemcached();
 
         return services;
     }

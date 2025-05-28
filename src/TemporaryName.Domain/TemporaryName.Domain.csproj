@@ -9,8 +9,16 @@
   <ItemGroup>
     <Folder Include="Entities/" />
     <Folder Include="Enums/" />
-    <Folder Include="Exceptions/" />
     <Folder Include="ValueObjects/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Autofac.Extras.DynamicProxy" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TemporaryName.Common/TemporaryName.Common.csproj" />
   </ItemGroup>
 
 </Project>

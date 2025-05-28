@@ -1,0 +1,10 @@
+apiVersion: policy.linkerd.io/v1beta3
+kind: Server
+metadata:
+  name: template-server-name # TODO: Customize service name
+  namespace: template-namespace    # TODO: Customize namespace
+spec:
+  podSelector:
+    matchLabels:
+      app: template-app  # TODO: Ensure this matches your app's label
+  port: http-api # TODO: Ensure this matches a named port in your Deployment

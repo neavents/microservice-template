@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neavents-venue-service-pdb
+  namespace: neavents-prod
+  labels:
+    app: neavents-venue-service
+spec:
+  minAvailable: 1 # Or e.g., "50%"
+  selector:
+    matchLabels:
+      app: neavents-venue-service

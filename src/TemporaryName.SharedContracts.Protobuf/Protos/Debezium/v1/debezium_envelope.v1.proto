@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package temporaryname.debezium.v1;
+
+import "google/protobuf/any.proto"; // To hold specific record types
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option csharp_namespace = "TemporaryName.Contracts.Proto.Debezium.V1";
+
+// This is a generic envelope. Debezium's ProtobufConverter typically serializes
+// the 'after' or 'before' state directly as the message value, not this envelope.
+// This envelope is more for if you use an SMT to combine data or want a consistent
+// structure for your MassTransit IConsumer<DebeziumCdcEvent<UserRecordProto>>.
+// For direct Debezium output, the Kafka message value IS OFTEN just UserRecordProto (for 'after' state).
+// Headers carry op, source info.
+//
+// IF Debezium is configured with SMTs to produce such an envelope:
+message DebeziumCdcEvent {
+  google.protobuf.Any before = 1; // Contains the specific table record proto (e.g., UserRecordProto)
+  google.protobuf.Any after = 2;  // Contains the specific table record proto
+  SourceProto source = 3;
+  string op = 4; // "c", "u", "d", "r", "t"
+  google.protobuf.Timestamp ts_ms = 5; // Event time in Debezium
+  // TransactionMetadataProto transaction = 6;
+}
+
+message SourceProto {
+  google.protobuf.StringValue version = 1;
+  google.protobuf.StringValue connector = 2;
+  string name = 3; // database.server.name
+  int64 ts_ms = 4; // Source DB timestamp
+  google.protobuf.StringValue snapshot = 5;
+  string db = 6;
+  string schema_name = 7; // Renamed from 'schema'
+  string table_name = 8;  // Renamed from 'table'
+  google.protobuf.Int64Value txId = 9;
+  // Protobuf doesn't have a native decimal. LSN could be string or int64.
+  // For PostgreSQL LSN, which is like 'A/B', string is safer.
+  google.protobuf.StringValue lsn_string = 10; // PostgreSQL LSN as string
+  // For SQL Server LSN (binary), it would be bytes or hex string.
+  // google.protobuf.BytesValue lsn_binary = 11;
+}

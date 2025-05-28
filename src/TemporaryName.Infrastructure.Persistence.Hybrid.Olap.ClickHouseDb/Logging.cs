@@ -1,0 +1,14 @@
+using System;
+using SharedKernel.Constants;
+
+namespace TemporaryName.Infrastructure.Persistence.Hybrid.Olap.ClickHouseDb;
+
+public class Logging
+{
+    public const int ProjectId = 32; 
+    public const int ClickHousePersistenceBaseEventId = ProjectId * BaseLogging.IncrementPerProject;
+    public const int IncrementPerClass = 1_000;
+    public const int IncrementPerLog = 10;
+    public const string ProjectName = "Infrastructure.Persistence.Hybrid.Olap.ClickHouse";
+
+}

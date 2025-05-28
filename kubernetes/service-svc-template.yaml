@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: venue-service # The DNS name other services will use (e.g., venue-service.neavents-prod.svc.cluster.local)
+  namespace: neavents-prod
+  labels:
+    app: neavents-venue-service
+spec:
+  type: ClusterIP # Default, for internal services
+  selector:
+    app: neavents-venue-service # Selects pods labeled with app: neavents-venue-service
+  ports:
+    - name: http-api # Consistent named port
+      port: 80 # Port the Service exposes
+      targetPort: http-api # Forwards to the 'http-api' (containerPort 8080) on the pods
+      protocol: TCP

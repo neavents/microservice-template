@@ -7,12 +7,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
+    <PackageReference Include="Autofac" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" />
+    <PackageReference Include="Autofac.Extras.DynamicProxy" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.Abstractions" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.Console" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../TemporaryName.Application/TemporaryName.Application.csproj" />
+    <ProjectReference Include="../TemporaryName.Domain/TemporaryName.Domain.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Hosting.Extensions/TemporaryName.Infrastructure.Hosting.Extensions.csproj" />
+    <ProjectReference Include="../TemporaryName.Infrastructure.Security.Authorization/TemporaryName.Infrastructure.Security.Authorization.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure/TemporaryName.Infrastructure.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Memcached\TemporaryName.Infrastructure.Caching.Memcached.csproj" />
   </ItemGroup>
 
 </Project>

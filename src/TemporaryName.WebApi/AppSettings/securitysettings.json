@@ -1,0 +1,17 @@
+{
+    "HashiCorpVault": {
+      "Address": "http://localhost:8200",
+      "AuthMethod": "Token", 
+      "Token": "myroottokenid", 
+      "AppRoleId": "your-approle-id",
+      "AppRoleSecretId": "your-approle-secret-id",
+      "AppRoleMountPoint": "approle",
+      "KubernetesRoleName": "your-microservice-role",
+      "KubernetesTokenPath": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "KubernetesAuthMountPoint": "kubernetes",
+      "ClientTimeoutSeconds": 30,
+      "Namespace": "", 
+      "SkipSslVerify": false, 
+      "CustomCaCertPath": null
+    }
+  }

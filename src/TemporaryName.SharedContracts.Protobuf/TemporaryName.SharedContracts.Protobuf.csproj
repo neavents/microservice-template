@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MassTransit.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos/Outbox/v1/outbox_message.v1.proto" />
+    <Protobuf Include="Protos/Debezium/v1/debezium_envelope.v1.proto" />
+  </ItemGroup>
+
+</Project>

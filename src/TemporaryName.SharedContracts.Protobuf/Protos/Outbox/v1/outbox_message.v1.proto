@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package TemporaryName.Contracts.Proto.Outbox.V1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option csharp_namespace = "TemporaryName.Contracts.Proto.Outbox.V1";
+
+message OutboxMessageProto {
+  // Unique identifier of this outbox message entry (typically the primary key from the outbox database table).
+  // This guarantees uniqueness for the outbox record itself.
+  // Example: "7a6f6d5a-9078-4c2f-8c6c-7d8a5b4c3d2e"
+  string id = 1;
+
+  // The unique identifier of the domain event that this outbox message represents.
+  // This should be generated when the domain event is first created and is crucial for idempotency
+  // in downstream consumers.
+  // Example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  string event_id = 2;
+
+  // Fully qualified name of the original domain event type.
+  // This is used by the relay service to understand how to deserialize and handle the payload.
+  // Example: "TemporaryName.Domain.Aggregates.Orders.Events.OrderCreatedDomainEvent"
+  string event_type_fqn = 3;
+
+  // The actual domain event payload, serialized as a JSON string.
+  // The relay service will deserialize this JSON into the specific .NET domain event POCO.
+  string payload_json = 4;
+
+  // Timestamp indicating when the domain event (and this outbox message) was originally created.
+  // This should be set by the application when the event is first generated.
+  google.protobuf.Timestamp occurred_at_utc = 5;
+
+  // Timestamp indicating when this outbox message was persisted to the outbox table.
+  // This might be slightly different from 'occurred_at_utc' and is often set by the database or interceptor.
+  google.protobuf.Timestamp persisted_at_utc = 6;
+
+  // Type of the aggregate root that originated the event.
+  // Useful for categorization and routing.
+  // Example: "Order", "UserProfile", "Product"
+  string aggregate_type = 7;
+
+  // Identifier of the specific aggregate root instance that this event pertains to.
+  // Example: "ORD-2024-00123", "USR-98765"
+  string aggregate_id = 8;
+
+  // Optional: Version of the aggregate root after this event was applied.
+  // Useful for optimistic concurrency checks or event sourcing rebuilds.
+  // Use sint64 for potentially large version numbers, or StringValue if it can be non-numeric.
+  sint64 aggregate_version = 9; // Use sint64 if it can be negative (though unlikely for versions) or int64
+
+  // Correlation ID for tracing a logical operation or request across multiple services and events.
+  // Should be propagated from the initial request or command.
+  // Example: "b3a2c1d0-e9f8-4a7b-6c5d-4e3f2a1b0c9d"
+  string correlation_id = 10;
+
+  // Causation ID, linking this event to a preceding command or event that caused it.
+  // Helps in understanding the chain of events.
+  // Example: "c1d0b3a2-7b6c-4e3f-8a5b-9d8c7e6f5a4b" (ID of the command message)
+  string causation_id = 11;
+
+  // Optional: Identifier for the user or system principal that initiated the action leading to this event.
+  // Example: "user-123", "system-batch-processor"
+  string user_id = 12;
+
+  // Optional: Tenant identifier if the system is multi-tenant.
+  // Example: "tenant-abc-001"
+  string tenant_id = 13;
+
+  // Optional: Distributed tracing context (e.g., W3C Trace Context 'traceparent' and 'tracestate').
+  // This allows linking this event to distributed traces.
+  // Storing as a map or specific fields. A map is more flexible.
+  map<string, string> trace_context = 14;
+  // Example keys: "traceparent", "tracestate"
+
+  // Version of this OutboxMessageProto schema itself.
+  // Useful if the structure of OutboxMessageProto changes significantly over time.
+  // Example: "1.0", "1.1"
+  string schema_version = 15;
+
+  // Arbitrary metadata associated with the outbox message or the event.
+  // This provides an extension point for additional contextual information
+  // without needing to change the core schema frequently.
+  // Keys should be descriptive. Values are strings. For complex objects, serialize to JSON string.
+  map<string, string> metadata = 16;
+  // Example: {"source_application": "OrderService", "data_sensitivity": "PII"}
+
+  // For more complex, strongly-typed metadata, google.protobuf.Any can be used,
+  // but it adds complexity in serialization and deserialization.
+  // repeated google.protobuf.Any extended_attributes = 17;
+
+  // Reserved fields for future use, to prevent accidental reuse of field numbers.
+  // reserved 17 to 20;
+  // reserved "legacy_field_name";
+}

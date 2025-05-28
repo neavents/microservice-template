@@ -1,0 +1,54 @@
+{
+  "Observability": {
+    "ServiceName": "MySpecificService", 
+    "ServiceVersion": "1.0.1-alpha",
+    "Tracing": {
+      "Enabled": true,
+      "SamplingProbability": 1.0,
+      "OtlpExporter": {
+        "Enabled": true,
+        "Endpoint": "http://localhost:4317",
+        "Protocol": "Grpc",
+        "Headers": { "X-My-Auth-Header": "some_secret_value" } 
+      },
+      "Instrumentations": {
+        "AspNetCore": true,
+        "HttpClient": true,
+        "EntityFrameworkCore": true,
+        "MassTransit": true,
+        "GrpcNetClient": false
+      }
+    },
+    "Metrics": {
+      "Enabled": true,
+      "ExportIntervalMilliseconds": 30000,
+      "OtlpExporter": {
+        "Enabled": true,
+        "Endpoint": "http://localhost:4317",
+        "Protocol": "Grpc"
+      },
+      "Instrumentations": {
+        "AspNetCore": true,
+        "HttpClient": true,
+        "Runtime": true,
+        "Process": true,
+        "MassTransit": true
+      }
+    },
+    "Logging": {
+      "Enabled": true,
+      "IncludeFormattedMessage": true,
+      "ParseStateValues": true,
+      "OtlpExporter": {
+        "Enabled": true,
+        "Endpoint": "http://localhost:4317",
+        "Protocol": "Grpc"
+      }
+    },
+    "ConsoleExporter": {
+      "EnableTracing": true,
+      "EnableMetrics": false,
+      "EnableLogging": false
+    }
+  }
+}

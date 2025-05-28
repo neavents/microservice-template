@@ -1,0 +1,8 @@
+{
+  "Redis": {
+    "ConnectionString": "localhost:6379",
+    "InstanceName": "MyApplication_", 
+    "DefaultSlidingExpiration": "00:30:00",
+    "DefaultAbsoluteExpirationRelativeToNow": "01:00:00"
+  }
+}
