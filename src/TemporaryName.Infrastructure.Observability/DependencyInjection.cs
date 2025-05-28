@@ -71,8 +71,8 @@ public static partial class DependencyInjection // Made partial to link with Dep
             .Enrich.WithProperty("MachineName", Environment.MachineName) // More reliable than Serilog.Enrichers.Environment
             .Enrich.WithProcessId()
             .Enrich.WithThreadId()
-            .Enrich.WithExceptionDetails(); // Serilog.Exceptions for detailed exception logging
-            // Consider .Enrich.WithCorrelationIdHeader() if you have middleware setting it.
+            .Enrich.WithExceptionDetails() // Serilog.Exceptions for detailed exception logging
+            .Enrich.WithCorrelationIdHeader();
 
         // Default properties from settings
         if (observabilitySettings.Serilog.DefaultLogProperties != null)

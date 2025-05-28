@@ -1,0 +1,19 @@
+apiVersion: policy.linkerd.io/v1alpha1
+kind: ServerAuthorization
+metadata:
+  name: allow-clients-to-template-name # TODO: Customize
+  namespace: template-namespace  # TODO: Customize
+spec:
+  server:
+    name: template-server-name # TODO: Match Server name
+  client:
+    # TODO: Define who can call this service. Example:
+    # meshTLS:
+    #   identities:
+    #     - "some-client-sa.some-namespace.serviceaccount.identity.linkerd.cluster.local"
+    # To allow all meshed clients in the same namespace (use with caution):
+    # meshTLS:
+    #   identities:
+    #     - "*.{{NAMESPACE_PLACEHOLDER}}.serviceaccount.identity.linkerd.cluster.local"
+    # To allow unauthenticated (e.g., from non-meshed ingress, if necessary):
+    # unauthenticated: true

@@ -1,0 +1,60 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: venue-service-default-deny
+  namespace: neavents-prod
+  labels:
+    app: neavents-venue-service
+spec:
+  podSelector: # Applies to our venue-service pods
+    matchLabels:
+      app: neavents-venue-service
+  policyTypes: # Apply both Ingress and Egress rules
+    - Ingress
+    - Egress
+  ingress: # Allow Ingress traffic ONLY from:
+    - from:
+        # 1. Pods in 'neavents-gateway' namespace with label 'app: api-gateway' (for our api-gateway-sa)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: neavents-gateway # Selects the namespace
+          podSelector:
+            matchLabels:
+              app: api-gateway # Replace with actual label of your API gateway/BFF pods
+        # 2. Pods in the *same* 'neavents-prod' namespace with label 'app: recommendation-service' (for recommendation-service-sa)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: neavents-prod
+          podSelector:
+            matchLabels:
+              app: recommendation-service # Replace with actual label of your recommendation service pods
+        # 3. (Optional) Allow probes from Linkerd's control plane namespace if probes aren't on proxy admin port
+        # - namespaceSelector:
+        #     matchLabels:
+        #       kubernetes.io/metadata.name: linkerd # Or your Linkerd control plane namespace
+        #   podSelector: # This might need to be more specific if possible
+        #     matchLabels: {} # Be careful with this, it's broad for the namespace
+      ports: # To the 'http-api' port of venue-service
+        - protocol: TCP
+          port: http-api # Named port from Deployment
+  egress: # By default, deny all egress. Add rules below if needed.
+    # Example: Allow DNS traffic (essential for most apps)
+    - to:
+        - namespaceSelector: {} # Allows to any namespace
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns # Standard label for CoreDNS/kube-dns pods
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # TODO: Add specific egress rules if venue-service needs to call other services or external APIs
+    # Example: Allow egress to 'database-service' in the same namespace on port 5432
+    # - to:
+    #   - podSelector:
+    #       matchLabels:
+    #         app: database-service
+    #   ports:
+    #   - protocol: TCP
+    #     port: 5432

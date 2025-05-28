@@ -1,0 +1,38 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: neavents-venue-service-hpa
+  namespace: neavents-prod
+  labels:
+    app: neavents-venue-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: neavents-venue-service # Targets our Deployment
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource # Standard CPU or Memory based scaling
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75 # Target 75% CPU utilization
+    # Example: Could also scale on memory
+    # - type: Resource
+    #   resource:
+    #     name: memory
+    #     target:
+    #       type: Utilization # Or AverageValue
+    #       averageUtilization: 75
+    # TODO: Consider custom metrics if standard ones aren't sufficient.
+    # Linkerd proxy metrics (RPS, latency), if fed into Prometheus and then exposed
+    # via a custom metrics adapter (e.g., keda.sh/prometheus-adapter), could be used.
+    # - type: Pods # Or Object for custom metrics from an external source
+    #   pods:
+    #     metric:
+    #       name: linkerd_proxy_requests_per_second # Hypothetical custom metric name
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "100" # e.g., scale up if average RPS per pod > 100

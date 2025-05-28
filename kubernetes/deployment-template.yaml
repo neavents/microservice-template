@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neavents-venue-service
+  namespace: neavents-prod
+  labels:
+    app: neavents-venue-service
+    # version: v1.0.0 # Archy could manage version labels
+    # environment: production # Archy could manage environment labels
+spec:
+  replicas: 2 # Sensible default, user can override
+  selector:
+    matchLabels:
+      app: neavents-venue-service
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled # CRUCIAL: Enables Linkerd sidecar injection
+        # Optional: Override Linkerd proxy resource requests/limits if needed
+        # config.linkerd.io/proxy-cpu-request: "50m"
+        # config.linkerd.io/proxy-memory-request: "64Mi"
+        # config.linkerd.io/proxy-cpu-limit: "250m"
+        # config.linkerd.io/proxy-memory-limit: "128Mi"
+      labels:
+        app: neavents-venue-service
+        # version: v1.0.0
+    spec:
+      serviceAccountName: venue-sa # Uses the ServiceAccount Archy generates
+      containers:
+        - name: app # Your .NET application container
+          image: your-registry/neavents-venue-service:latest # TODO: Replace with actual image path
+          imagePullPolicy: IfNotPresent # Or Always, depending on your image tagging strategy
+          ports:
+            - name: http-api # Named port, referenced by Service & Linkerd Server CRD
+              containerPort: 8080 # Port your .NET app listens on
+          env:
+            # Archy could scaffold common environment variables
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT # For smaller ICU footprint if applicable
+              value: "true"
+            # Example: Database connection string from a Secret
+            # - name: ConnectionStrings__AppDb
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: venue-service-secrets
+            #       key: AppDbConnection
+          resources:
+            # Archy should always scaffold resource requests & limits for the app container
+            requests:
+              cpu: "100m" # 0.1 vCPU
+              memory: "128Mi"
+            limits:
+              cpu: "500m" # 0.5 vCPU
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /ready # Points to Linkerd proxy's admin endpoint
+              port: 4191   # Linkerd proxy admin port
+            initialDelaySeconds: 10 # Time for app + proxy to start
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live # Points to Linkerd proxy's admin endpoint
+              port: 4191  # Linkerd proxy admin port
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+      # terminationGracePeriodSeconds: 30 # Default is 30s, ensure app can shut down
