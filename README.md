@@ -114,7 +114,7 @@ This template, provides a well-structured starting point for building .NET 9 mic
 
 2.  **Create a new microservice from the template:**
     ```bash
-    dotnet new neavents-microservice-template -n MyAwesomeService -o MyAwesomeServiceOutput
+    dotnet new neavents-micro-base -n MyAwesomeService -o MyAwesomeServiceOutput
     # Replace MyAwesomeService with your desired service name.
     # This will replace "TemporaryName" throughout the template.
     ```
