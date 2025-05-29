@@ -3,15 +3,15 @@
 [![.NET Version](https://img.shields.io/badge/.NET-9.0-blueviolet)](https://dotnet.microsoft.com/download/dotnet/9.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
-**Current Version:** 0.0-alpha (as per `version.json`)
+**Current Version:** 1.0-earlyalpha
 
-A foundational .NET microservice template following clean architecture practices, designed to accelerate development for projects like Neavents. This template is packed with enterprise-grade features, promoting robustness, scalability, and maintainability.
+A foundational .NET microservice template following clean architecture practices, designed to accelerate development for projects like Neavents. This template is packed with enterprise-grade features, promoting robustness, scalability, and maintainability. (NOT FOR PRODUCTION RIGHT NOW! USE WITH CAUTION)
 
 ---
 
 ## Overview
 
-This template, identified as `PolatEfeKaya.Neavents.Microservice.Base.Template` (short name: `neavents-micro-base`), provides a well-structured starting point for building .NET 9 microservices. It integrates a wide array of modern technologies and patterns, aiming to reduce boilerplate and enforce best practices from the outset. The `sourceName` for generated projects is `TemporaryName`, which you will replace with your actual service name when instantiating the template.
+This template, provides a well-structured starting point for building .NET 9 microservices. It integrates a wide array of modern technologies and patterns, aiming to reduce boilerplate and enforce best practices from the outset. The `sourceName` for generated projects is `TemporaryName`, which you will replace with your actual service name when instantiating the template.
 
 ## Key Features
 
@@ -102,18 +102,15 @@ This template, identified as `PolatEfeKaya.Neavents.Microservice.Base.Template` 
 ### Installation
 
 1.  **Install the template:**
-    If this template were packaged and hosted on NuGet:
-    ```bash
-    dotnet new install PolatEfeKaya.Neavents.Microservice.Base.Template
-    ```
+    (NuGet is not supported for now)
     For local development (after cloning this repository):
     ```bash
-    dotnet new install path/to/neavents/microservice-template/microservice-template-feature
+    dotnet new install path/to/neavents-microservice-template
     ```
 
 2.  **Create a new microservice from the template:**
     ```bash
-    dotnet new neavents-micro-base -n MyAwesomeService -o MyAwesomeServiceOutput
+    dotnet new neavents-microservice-template -n MyAwesomeService -o MyAwesomeServiceOutput
     # Replace MyAwesomeService with your desired service name.
     # This will replace "TemporaryName" throughout the template.
     ```
@@ -140,8 +137,6 @@ Make sure scripts are executable (`chmod +x ./scripts/*.sh`).
 
 #### Using Docker Compose
 
-(Assuming a `docker-compose.yml` is present at the root of the generated service, which is typical for such templates although not directly provided in the file list.)
-
 * **Start services:** `./scripts/docker-compose-up.sh` - Builds images if necessary and starts services in detached mode.
 * **Stop services:** `./scripts/docker-compose-down.sh` - Stops and removes containers.
 * **View logs:** `./scripts/docker-compose-logs.sh [service_name]` - Tails logs for all services or a specific one.
@@ -153,55 +148,55 @@ Make sure scripts are executable (`chmod +x ./scripts/*.sh`).
 
 After generating a project named `YourServiceName` from the `TemporaryName` source:
 
-YourServiceName/
-├── .template.config/        # Template configuration (excluded from generated project)
-├── kubernetes/                # Kubernetes manifests
-│   ├── linkerd/             # Linkerd specific manifests
-│   ├── deployment-template.yaml
-│   ├── ... (other k8s YAMLs)
-├── scripts/                 # Utility shell scripts
-├── src/
-│   ├── YourServiceName.Application/
-│   ├── YourServiceName.Application.Contracts/
-│   ├── YourServiceName.Domain/
-│   ├── YourServiceName.Infrastructure/
-│   │   ├── Caching.Memcached/
-│   │   ├── Caching.Redis/
-│   │   ├── ChangeDataCapture.Debezium/
-│   │   ├── Configuration/
-│   │   ├── DataAccess/
-│   │   ├── Hosting.Extensions/
-│   │   ├── HttpClient/
-│   │   ├── Messaging.MassTransit/
-│   │   ├── MultiTenancy/
-│   │   ├── Observability/
-│   │   ├── Outbox.EFCore/
-│   │   ├── Persistence.Common.EFCore/
-│   │   ├── Persistence.Hybrid.Graph.Neo4j/
-│   │   ├── Persistence.Hybrid.NoSql.Cassandra/
-│   │   ├── Persistence.Hybrid.Olap.ClickHouseDb/
-│   │   ├── Persistence.Hybrid.Sql.PostgreSQL/
-│   │   ├── Persistence.Hybrid.Vector.Milvus/ (Placeholder)
-│   │   ├── Persistence.Seeding/ (Placeholder)
-│   │   ├── Security.Auth.Keycloak/ (Placeholder)
-│   │   ├── Security.Authorization/
-│   │   ├── Security.Secrets.HashiCorpVault/
-│   │   └── Web.ExceptionHandling/
-│   ├── YourServiceName.WebApi/
-│   ├── YourServiceName.Worker.Hangfire/
-│   ├── YourServiceName.Worker.Quartz/
-│   └── SharedKernel/          # Core primitives, shared across layers
-├── tests/                   # Unit and integration tests for each layer
-│   ├── YourServiceName.Application.Tests/
-│   ├── ...
-├── tools/
-│   ├── YourServiceName.Tools.Persistence.Migrations/
-│   └── YourServiceName.Tools.Persistence.Seeding/ (Placeholder)
-├── YourServiceName.sln
-├── README.md                # This file!
-├── .editorconfig
-├── .gitignore
-└── version.json             # Nerdbank.GitVersioning configuration
+- YourServiceName/
+  - .template.config/         # Template configuration (excluded from generated project)
+  - kubernetes/                 # Kubernetes manifests
+    - linkerd/              # Linkerd specific manifests
+    - deployment-template.yaml
+    - ... (other k8s YAMLs)
+  - scripts/                    # Utility shell scripts
+  - src/
+    - YourServiceName.Application/
+    - YourServiceName.Application.Contracts/
+    - YourServiceName.Domain/
+    - YourServiceName.Infrastructure/
+      - Caching.Memcached/
+      - Caching.Redis/
+      - ChangeDataCapture.Debezium/
+      - Configuration/
+      - DataAccess/
+      - Hosting.Extensions/
+      - HttpClient/
+      - Messaging.MassTransit/
+      - MultiTenancy/
+      - Observability/
+      - Outbox.EFCore/
+      - Persistence.Common.EFCore/
+      - Persistence.Hybrid.Graph.Neo4j/
+      - Persistence.Hybrid.NoSql.Cassandra/
+      - Persistence.Hybrid.Olap.ClickHouseDb/
+      - Persistence.Hybrid.Sql.PostgreSQL/
+      - Persistence.Hybrid.Vector.Milvus/ (Placeholder)
+      - Persistence.Seeding/ (Placeholder)
+      - Security.Auth.Keycloak/ (Placeholder)
+      - Security.Authorization/
+      - Security.Secrets.HashiCorpVault/
+      - Web.ExceptionHandling/
+    - YourServiceName.WebApi/
+    - YourServiceName.Worker.Hangfire/
+    - YourServiceName.Worker.Quartz/
+    - SharedKernel/             # Core primitives, shared across layers
+  - tests/                      # Unit and integration tests for each layer
+    - YourServiceName.Application.Tests/
+    - ...
+  - tools/
+    - YourServiceName.Tools.Persistence.Migrations/
+    - YourServiceName.Tools.Persistence.Seeding/ (Placeholder)
+  - YourServiceName.sln
+  - README.md                   # This file!
+  - .editorconfig
+  - .gitignore
+  - version.json                # Nerdbank.GitVersioning configuration
 
 ---
 
@@ -280,7 +275,7 @@ These are registered in `TemporaryName.Infrastructure/InfrastructureModule.cs` a
 
 * **Project:** `src/YourServiceName.Infrastructure.ChangeDataCapture.Debezium`
 * **Purpose:** Enables capturing database changes (e.g., from an outbox table) using Debezium and processing them via Kafka.
-* **`GenericDebeziumConsumer`:** A hosted service for consuming messages from Kafka topics populated by Debezium. It handles Avro deserialization (with Schema Registry) and delegates message processing to an `IDebeziumEventHandler`.
+* **`GenericDebeziumConsumer`:** A hosted service for consuming messages from Kafka topics populated by Debezium. It handles Protobuf deserialization (with Schema Registry) and delegates message processing to an `IDebeziumEventHandler`.
 * **`KafkaOutboxMessageProcessor` & `KafkaOutboxMessageSource`:** These classes are specifically designed to work with the transactional outbox pattern.
     * `KafkaOutboxMessageSource` consumes Protobuf-encoded outbox messages (as defined in `TemporaryName.Contracts.Proto.Outbox.V1.OutboxMessageProto`) from a Kafka topic that Debezium populates.
     * It transforms these into `ConsumedOutboxMessage` instances for the `OutboxEventRelayService`.
