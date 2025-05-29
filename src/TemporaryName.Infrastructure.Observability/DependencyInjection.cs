@@ -1,7 +1,5 @@
-using System;
+using System.Globalization;
 using System.Reflection;
-using Elastic.Apm.NetCoreAll;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,73 +7,65 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Debugging;
 using Serilog.Events;
+using Serilog.Exceptions;
 using Serilog.Formatting.Elasticsearch;
-using Serilog.Sinks.Elasticsearch;
 using TemporaryName.Infrastructure.Observability.Settings;
 using ElasticsearchSinkOptions = Serilog.Sinks.Elasticsearch.ElasticsearchSinkOptions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using UserDefinedElasticsearchSinkOptions = TemporaryName.Infrastructure.Observability.Settings.ElasticsearchSinkOptions;
 namespace TemporaryName.Infrastructure.Observability;
 
-public static partial class DependencyInjection // Made partial to link with DependencyInjection.Log.cs
+public static partial class DependencyInjection
 {
     private static string _resolvedServiceName = "UnknownService";
     private static string? _resolvedServiceVersion = "0.0.0";
     private static string _resolvedDeploymentEnvironment = "Undefined";
 
     /// <summary>
-    /// Configures Serilog for structured logging, including console and Elasticsearch sinks.
+    /// An extension method for <c>LoggerConfiguration</c> configures Serilog for structured logging, including console and Elasticsearch sinks.
     /// This method is intended to be used with <c>builder.Host.UseSerilog(...)</c>.
     /// </summary>
-    /// <param name="hostContext">The host builder context, providing access to configuration and environment.</param>
-    /// <param name="services">The service provider, useful for resolving services needed during configuration.</param>
     /// <param name="loggerConfiguration">The Serilog logger configuration to be built upon.</param>
+    /// <param name="hostContext">The host builder context, providing access to configuration and environment.</param>
     /// <param name="observabilitySettings">Pre-resolved observability settings.</param>
     /// <remarks>
     /// This modular approach allows Serilog to be configured with all necessary context
     /// and settings before the host is fully built.
     /// </remarks>
     public static void ConfigureSerilogForElk(
+        this LoggerConfiguration loggerConfiguration,
         HostBuilderContext hostContext,
-        IServiceProvider services, // Can be used to resolve services if needed during logging setup
-        LoggerConfiguration loggerConfiguration,
-        ObservabilityOptions observabilitySettings)
+        ObservabilityOptions observabilitySettings,
+        ILogger logger,
+        IConfiguration configuration)
     {
-        // Resolve a logger for the setup process itself.
-        // Since Serilog isn't fully configured yet, use a simple console logger for these DI logs.
-        // Or, if an ILoggerFactory is already available in `services`, use that.
-        var diLogger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(DependencyInjection).FullName!)
-                       ?? new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
-
-        // Determine service info for enrichers
         var serviceInfo = observabilitySettings.ServiceInfo;
         var entryAssembly = Assembly.GetEntryAssembly();
         _resolvedServiceName = serviceInfo.ServiceName ?? entryAssembly?.GetName().Name ?? "UnknownService";
         _resolvedServiceVersion = serviceInfo.ServiceVersion ?? entryAssembly?.GetName().Version?.ToString();
-        _resolvedDeploymentEnvironment = serviceInfo.DeploymentEnvironment ?? hostContext.HostingEnvironment.EnvironmentName;
+        _resolvedDeploymentEnvironment = serviceInfo.DeploymentEnvironment ?? hostContext.HostingEnvironment.EnvironmentName; 
 
-        LogObservabilitySetupStarting(diLogger, _resolvedServiceName);
+        LogObservabilitySetupStarting(logger, _resolvedServiceName);
 
         if (observabilitySettings.Serilog.EnableSelfLog)
         {
             SelfLog.Enable(Console.Error);
-            LogSelfLogEnabled(diLogger);
+            LogSelfLogEnabled(logger);
         }
 
         loggerConfiguration
-            .ReadFrom.Configuration(hostContext.Configuration) // Allows appsettings.json overrides for Serilog
+            .ReadFrom.Configuration(hostContext.Configuration)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("ApplicationName", _resolvedServiceName)
             .Enrich.WithProperty("ApplicationVersion", _resolvedServiceVersion)
             .Enrich.WithProperty("Environment", _resolvedDeploymentEnvironment)
-            .Enrich.WithProperty("MachineName", Environment.MachineName) // More reliable than Serilog.Enrichers.Environment
+            .Enrich.WithProperty("MachineName", Environment.MachineName)
             .Enrich.WithProcessId()
             .Enrich.WithThreadId()
-            .Enrich.WithExceptionDetails() // Serilog.Exceptions for detailed exception logging
-            .Enrich.WithCorrelationIdHeader();
+            .Enrich.WithExceptionDetails();
+        //.Enrich.WithCorrelationIdHeader();
 
-        // Default properties from settings
-        if (observabilitySettings.Serilog.DefaultLogProperties != null)
+        if (observabilitySettings.Serilog.DefaultLogProperties is not null)
         {
             foreach (var prop in observabilitySettings.Serilog.DefaultLogProperties)
             {
@@ -87,15 +77,15 @@ public static partial class DependencyInjection // Made partial to link with Dep
 
         if (observabilitySettings.Serilog.WriteToConsole)
         {
-            // Using a structured JSON formatter for console in dev can be useful for consistency with ES
-            // Or a simpler text template for readability.
+
             loggerConfiguration.WriteTo.Async(wt => wt.Console(
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) {Message:lj} {Properties:j}{NewLine}{Exception}"
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) {Message:lj} {Properties:j}{NewLine}{Exception}",
+                formatProvider: CultureInfo.InvariantCulture
             ));
         }
-        LogSerilogConfigured(diLogger, observabilitySettings.Serilog.WriteToConsole, observabilitySettings.Serilog.MinimumLevel.Default);
+        LogSerilogConfigured(logger, observabilitySettings.Serilog.WriteToConsole, observabilitySettings.Serilog.MinimumLevel.Default);
 
-        AddElasticsearchSinkInternal(loggerConfiguration, observabilitySettings.ElasticsearchSink, diLogger);
+        AddElasticsearchSinkInternal(loggerConfiguration, observabilitySettings.ElasticsearchSink, logger);
     }
 
     private static void ConfigureSerilogMinimumLevels(LoggerConfiguration loggerConfiguration, MinimumLevelOptions minLevelSettings)
@@ -120,13 +110,13 @@ public static partial class DependencyInjection // Made partial to link with Dep
     private static void AddElasticsearchSinkInternal(
         LoggerConfiguration loggerConfiguration,
         UserDefinedElasticsearchSinkOptions esSinkSettings,
-        ILogger diLogger) 
+        ILogger diLogger)
     {
         if (esSinkSettings.Enabled && esSinkSettings.NodeUris?.Any() == true)
         {
             if (!Enum.TryParse<LogEventLevel>(esSinkSettings.MinimumLogEventLevel, true, out var sinkMinLevel))
             {
-                sinkMinLevel = LogEventLevel.Information; // Default if parsing fails
+                sinkMinLevel = LogEventLevel.Information;
                 diLogger.LogWarning("Could not parse MinimumLogEventLevel '{SinkMinLevelString}' for Elasticsearch sink. Defaulting to '{DefaultSinkMinLevel}'.",
                     esSinkSettings.MinimumLogEventLevel, sinkMinLevel);
             }
@@ -182,13 +172,13 @@ public static partial class DependencyInjection // Made partial to link with Dep
     /// <param name="services">The <see cref="IServiceCollection"/> to add services to.</param>
     /// <param name="configuration">The application's <see cref="IConfiguration"/>.</param>
     /// <param name="observabilitySettings">Pre-resolved observability settings to check for APM enablement.</param>
-    /// <param name="diLogger">A logger for the DI setup process.</param>
+    /// <param name="logger">A logger for the DI setup process.</param>
     /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-    public static IServiceCollection AddAppElasticApm(
+    public static IServiceCollection AddConfiguredAppElasticApm(
         this IServiceCollection services,
         IConfiguration configuration,
         ObservabilityOptions observabilitySettings,
-        ILogger diLogger)
+        ILogger logger)
     {
         var apmSettings = observabilitySettings.ElasticApm;
 
@@ -200,37 +190,17 @@ public static partial class DependencyInjection // Made partial to link with Dep
             // Our ObservabilitySettings.ElasticApm section provides these values to the config.
             services.AddAllElasticApm();
 
-            LogElasticApmConfigured(diLogger,
-                _resolvedServiceName, // Use the service name resolved during Serilog setup
-                configuration["ElasticApm:ServerUrl"] ?? apmSettings.ServerUrl, // Show what APM agent will likely use
+            LogElasticApmConfigured(logger,
+                _resolvedServiceName,
+                configuration["ElasticApm:ServerUrl"] ?? apmSettings.ServerUrl,
                 configuration["ElasticApm:TransactionSampleRate"] ?? apmSettings.TransactionSampleRate,
                 configuration["ElasticApm:Environment"] ?? apmSettings.Environment ?? _resolvedDeploymentEnvironment);
         }
         else
         {
-            LogElasticApmDisabled(diLogger, _resolvedServiceName);
+            LogElasticApmDisabled(logger, _resolvedServiceName);
         }
         return services;
     }
 
-    /// <summary>
-    /// Registers the Elastic APM middleware.
-    /// This should be called early in the ASP.NET Core request pipeline (in <c>Configure</c> method or after <c>app = builder.Build()</c>).
-    /// </summary>
-    /// <param name="services">The <see cref="IServiceCollection"/>.</param>
-    /// <param name="observabilitySettings">Pre-resolved observability settings to check for APM enablement.</param>
-    /// <param name="logger">A logger for the DI setup process.</param>
-    /// <returns>The <see cref="IServiceCollection"/> so that additional calls can be chained.</returns>
-    public static IServiceCollection ConfigureAppElasticApm(
-        this IServiceCollection services,
-        ObservabilityOptions observabilitySettings,
-        ILogger logger)
-    {
-        if (observabilitySettings.ElasticApm.Enabled)
-        {
-            services.AddAllElasticApm();
-            LogElasticApmMiddlewareRegistered(logger, _resolvedServiceName);
-        }
-        return services;
-    }
 }

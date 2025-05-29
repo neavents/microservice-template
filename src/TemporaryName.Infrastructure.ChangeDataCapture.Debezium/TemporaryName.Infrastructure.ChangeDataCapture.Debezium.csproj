@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="../TemporaryName.Infrastructure.Outbox.Abstractions/TemporaryName.Infrastructure.Outbox.Abstractions.csproj" />
     <ProjectReference Include="../TemporaryName.SharedContracts.Protobuf/TemporaryName.SharedContracts.Protobuf.csproj" />
+    <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
   </ItemGroup>
 
 </Project>

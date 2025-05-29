@@ -27,6 +27,18 @@
     <ProjectReference Include="../TemporaryName.Infrastructure.Persistence.Seeding/TemporaryName.Infrastructure.Persistence.Seeding.csproj" />
     <ProjectReference Include="../TemporaryName.Infrastructure.Security.Auth.Keycloak/TemporaryName.Infrastructure.Security.Auth.Keycloak.csproj" />
     <ProjectReference Include="..\TemporaryName.Infrastructure.Caching.Memcached\TemporaryName.Infrastructure.Caching.Memcached.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.DataAccess\TemporaryName.Infrastructure.DataAccess.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.MultiTenancy\TemporaryName.Infrastructure.MultiTenancy.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Outbox.EFCore\TemporaryName.Infrastructure.Outbox.EFCore.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Persistence.Common.EFCore\TemporaryName.Infrastructure.Persistence.Common.EFCore.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Persistence.Hybrid.Graph.Neo4j\TemporaryName.Infrastructure.Persistence.Hybrid.Graph.Neo4j.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Persistence.Hybrid.NoSql.Cassandra\TemporaryName.Infrastructure.Persistence.Hybrid.NoSql.Cassandra.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Persistence.Hybrid.Olap.ClickHouseDb\TemporaryName.Infrastructure.Persistence.Hybrid.Olap.ClickHouseDb.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Persistence.Hybrid.Vector.Milvus\TemporaryName.Infrastructure.Persistence.Hybrid.Vector.Milvus.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Security.Authorization\TemporaryName.Infrastructure.Security.Authorization.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Security.Secrets.HashiCorpVault\TemporaryName.Infrastructure.Security.Secrets.HashiCorpVault.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Storage.Local.MinIO\TemporaryName.Infrastructure.Storage.Local.MinIO.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Web.ExceptionHandling\TemporaryName.Infrastructure.Web.ExceptionHandling.csproj" />
   </ItemGroup>
 
 </Project>

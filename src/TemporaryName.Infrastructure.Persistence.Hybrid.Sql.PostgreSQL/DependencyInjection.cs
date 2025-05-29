@@ -13,15 +13,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddPostgreSqlPersistence(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
         string? connectionString = configuration.GetConnectionString("PostgreSqlDefaultConnection");
                     var tempSp = services.BuildServiceProvider();
-            var logger = tempSp.GetService<ILoggerFactory>()?.CreateLogger("TemporaryName.Infrastructure.Persistence.Hybrid.Sql.PostgreSQL.Startup");
-            
+
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             logger?.LogCritical("PostgreSQL connection string 'PostgreSqlPrimaryDataConnection' not found or is empty.");

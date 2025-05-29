@@ -5,7 +5,7 @@ namespace TemporaryName.Infrastructure.Persistence.Hybrid.Olap.ClickHouseDb;
 
 public class Logging
 {
-    public const int ProjectId = 32; 
+    public const int ProjectId = 14; 
     public const int ClickHousePersistenceBaseEventId = ProjectId * BaseLogging.IncrementPerProject;
     public const int IncrementPerClass = 1_000;
     public const int IncrementPerLog = 10;
