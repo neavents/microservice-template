@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using MassTransit;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -44,13 +45,19 @@ public static class DependencyInjection
                 
         return services;
     }
+    public static WebApplication AddInfrastructureMiddlewares(this WebApplication app)
+    {
+        app.AddObservabilityMiddlewares();
+        return app;
+    }
 
-    private static IServiceCollection AddPersistenceLayer(this IServiceCollection services, IConfiguration configuration, ILogger logger){
+    private static IServiceCollection AddPersistenceLayer(this IServiceCollection services, IConfiguration configuration, ILogger logger)
+    {
         services.AddPostgreSqlPersistence(configuration, logger)
                 .AddClickHousePersistence(configuration, logger)
                 .AddNeo4jPersistence(configuration, logger)
                 .AddCassandraPersistence(configuration, logger);
-                //.AddInfrastructurePersistenceSeeding();
+        //.AddInfrastructurePersistenceSeeding();
 
         return services;
     }

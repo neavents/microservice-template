@@ -9,7 +9,8 @@ namespace TemporaryName.WebApi;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddLayers(this IServiceCollection services, ILogger logger, WebApplicationBuilder builder) {
+    public static IServiceCollection AddLayers(this IServiceCollection services, ILogger logger, WebApplicationBuilder builder)
+    {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -22,12 +23,18 @@ public static class DependencyInjection
             ConfigureExtraRabbitMqBusFeatures = null,
             ObservabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>()!
         };
-        
+
         services.AddInfrastructureLayer(infrastructureModel)
                 .AddApplicationLayer()
                 .AddDomainLayer();
         //services.AddExtensiveCaching(configuration, null, logger);
 
         return services;
+    }
+
+    public static WebApplication AddMiddlewaresfromLayers(this WebApplication app)
+    {
+        app.AddInfrastructureMiddlewares();
+        return app;
     }
 }
