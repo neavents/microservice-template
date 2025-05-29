@@ -48,6 +48,7 @@ try
     });
     var app = builder.Build();
 
+    app.AddMiddlewaresfromLayers();
 
     if (app.Environment.IsDevelopment())
     {

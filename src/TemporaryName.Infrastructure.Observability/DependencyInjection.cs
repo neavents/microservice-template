@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,6 +10,7 @@ using Serilog.Debugging;
 using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Formatting.Elasticsearch;
+using TemporaryName.Infrastructure.Observability.Middlewares;
 using TemporaryName.Infrastructure.Observability.Settings;
 using ElasticsearchSinkOptions = Serilog.Sinks.Elasticsearch.ElasticsearchSinkOptions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -43,7 +45,7 @@ public static partial class DependencyInjection
         var entryAssembly = Assembly.GetEntryAssembly();
         _resolvedServiceName = serviceInfo.ServiceName ?? entryAssembly?.GetName().Name ?? "UnknownService";
         _resolvedServiceVersion = serviceInfo.ServiceVersion ?? entryAssembly?.GetName().Version?.ToString();
-        _resolvedDeploymentEnvironment = serviceInfo.DeploymentEnvironment ?? hostContext.HostingEnvironment.EnvironmentName; 
+        _resolvedDeploymentEnvironment = serviceInfo.DeploymentEnvironment ?? hostContext.HostingEnvironment.EnvironmentName;
 
         LogObservabilitySetupStarting(logger, _resolvedServiceName);
 
@@ -79,13 +81,24 @@ public static partial class DependencyInjection
         {
 
             loggerConfiguration.WriteTo.Async(wt => wt.Console(
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) {Message:lj} {Properties:j}{NewLine}{Exception}",
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) Trace={ElasticApmTraceId} Corr={CorrelationId} Transaction={ElasticApmTransactionId} {Message:lj} {Properties:j}{NewLine}{Exception}",
                 formatProvider: CultureInfo.InvariantCulture
             ));
         }
         LogSerilogConfigured(logger, observabilitySettings.Serilog.WriteToConsole, observabilitySettings.Serilog.MinimumLevel.Default);
 
         AddElasticsearchSinkInternal(loggerConfiguration, observabilitySettings.ElasticsearchSink, logger);
+    }
+
+    /// <summary>
+    /// This is an extension method for <c>WebApplication</c>, this configures and adds Observability related Middlewares to the <c>app</c>/
+    /// </summary>
+    /// <param name="app">WebApplication</param>
+    /// <returns>WebApplication for chaining calls.</returns>
+    public static WebApplication AddObservabilityMiddlewares(this WebApplication app)
+    {
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        return app;
     }
 
     private static void ConfigureSerilogMinimumLevels(LoggerConfiguration loggerConfiguration, MinimumLevelOptions minLevelSettings)
