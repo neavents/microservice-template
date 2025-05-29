@@ -16,6 +16,8 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Enrichers.CorrelationId" />
     <PackageReference Include="Serilog.Enrichers.Environment" />
+    <PackageReference Include="Serilog.Enrichers.Process" />
+    <PackageReference Include="Serilog.Enrichers.Thread" />
     <PackageReference Include="Serilog.Exceptions" />
     <PackageReference Include="Serilog.Formatting.Elasticsearch" />
     <PackageReference Include="Serilog.Settings.Configuration" />
@@ -27,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
+    <ProjectReference Include="..\TemporaryName.Infrastructure.Security.Secrets.HashiCorpVault\TemporaryName.Infrastructure.Security.Secrets.HashiCorpVault.csproj" />
   </ItemGroup>
 
 </Project>

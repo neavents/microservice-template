@@ -3,7 +3,7 @@ using Autofac;
 
 namespace TemporaryName.Infrastructure.Persistence.Hybrid.NoSql.Cassandra;
 
-public class CassandraPersistenceModule : Module
+public class CassandraModule : Module
 {
     protected override void Load(ContainerBuilder builder)
     {
