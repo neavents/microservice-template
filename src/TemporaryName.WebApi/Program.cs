@@ -31,6 +31,10 @@ try
     
     builder.LoadAndConfigureSettings();
 
+    builder.Services.ConfigureLocalication();
+    builder.Services.AddControllers()
+            .ConfigureDataAnnotationsLocalication();
+
     builder.Host.ConfigureContainer<ContainerBuilder>(autofacBuilder =>
     {
         autofacBuilder.RegisterModule<ApplicationServicesModule>()
@@ -38,6 +42,7 @@ try
             .RegisterModule<DomainModule>()
             .RegisterModule<ApplicationServicesModule>();
     });
+    
     builder.Services.AddOpenApi();
     builder.Services.AddLayers((Microsoft.Extensions.Logging.ILogger)Log.Logger, builder);
 
@@ -47,6 +52,7 @@ try
         cfg.ConfigureSerilogForElk(hostCtx, observOpts, (Microsoft.Extensions.Logging.ILogger)Log.Logger, builder.Configuration);
     });
     var app = builder.Build();
+    app.ConfigureRequestLocalization();
 
     app.AddMiddlewaresfromLayers();
 
@@ -63,6 +69,7 @@ try
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     });
 
+    app.MapControllers();
     await app.RunAsync();
 }
 catch (Exception ex) when (ex is not HostAbortedException)
