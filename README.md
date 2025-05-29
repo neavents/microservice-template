@@ -1,17 +1,19 @@
 # .NET Microservice Base Template (Neavents)
 
 [![.NET Version](https://img.shields.io/badge/.NET-9.0-blueviolet)](https://dotnet.microsoft.com/download/dotnet/9.0)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 **Current Version:** 1.0-earlyalpha
 
 A foundational .NET microservice template following clean architecture practices, designed to accelerate development for projects like Neavents. This template is packed with enterprise-grade features, promoting robustness, scalability, and maintainability. (NOT FOR PRODUCTION RIGHT NOW! USE WITH CAUTION)
 
+
 ---
+
 
 ## Overview
 
-This template, provides a well-structured starting point for building .NET 9 microservices. It integrates a wide array of modern technologies and patterns, aiming to reduce boilerplate and enforce best practices from the outset. The `sourceName` for generated projects is `TemporaryName`, which you will replace with your actual service name when instantiating the template.
+This template, provides a well-structured starting point for building .NET 9 microservices. It integrates a wide array of modern technologies and patterns, aiming to reduce boilerplate and enforce best practices from the outset. The `sourceName` for generated projects is `TemporaryName`, which you will replace with your actual service name when instantiating the template. This project has some very useful scripts you will love to use at `/scripts` directory.
 
 ## Key Features
 
@@ -81,7 +83,9 @@ This template, provides a well-structured starting point for building .NET 9 mic
 * **Testing:** Standard xUnit project structure for different layers.
 * **Versioning:** Configured for Nerdbank.GitVersioning.
 
+
 ---
+
 
 ## Getting Started
 
@@ -142,7 +146,9 @@ Make sure scripts are executable (`chmod +x ./scripts/*.sh`).
 * **View logs:** `./scripts/docker-compose-logs.sh [service_name]` - Tails logs for all services or a specific one.
 * **Build API Docker Image:** `./scripts/docker-build-api.sh [image_name] [tag]` - Builds the API Docker image.
 
+
 ---
+
 
 ## Project Structure (Simplified)
 
@@ -198,7 +204,9 @@ After generating a project named `YourServiceName` from the `TemporaryName` sour
   - .gitignore
   - version.json                # Nerdbank.GitVersioning configuration
 
+
 ---
+
 
 ## Core Concepts & Design Decisions
 
@@ -240,7 +248,9 @@ Autofac interceptors are used for cross-cutting concerns:
 
 These are registered in `TemporaryName.Infrastructure/InfrastructureModule.cs` and can be applied to services using attributes from `TemporaryName.Application.Contracts/Attributes/`.
 
+
 ---
+
 
 ## Feature Deep Dive
 
@@ -421,7 +431,9 @@ The template includes project structures and basic DI setup for several other da
 * **ClickHouse (`src/YourServiceName.Infrastructure.Persistence.Hybrid.Olap.ClickHouseDb`):** For OLAP and analytical workloads. Includes `IClickHouseConnectionProvider` and `ClickHouseOptions`.
 * **Milvus (`src/YourServiceName.Infrastructure.Persistence.Hybrid.Vector.Milvus`):** Placeholder for vector database integration, likely for AI/ML embedding similarity searches.
 
+
 ---
+
 
 ## Scripts and Tooling
 
@@ -439,8 +451,45 @@ The `/scripts` directory contains several utility scripts to streamline common d
 * **`publish-*.sh`**: Scripts for publishing the API and worker projects.
 * **`run-*.sh`**: Scripts for running the API and worker projects locally.
 * **`test.sh`**: Runs tests for the solution.
+* **`commit-and-push.sh "Your commit message"`**:
+    * **Purpose:** Automates the process of staging all current changes, committing them with a user-provided message, and pushing the current branch to its remote counterpart.
+    * **Arguments:**
+        * `"Your commit message"` (Required): The commit message, enclosed in quotes.
+    * **Behavior:**
+        * Ensures it runs from the project's absolute root directory (navigates if necessary).
+        * Executes `git add .` to stage all changes (new, modified, deleted).
+        * Executes `git commit -m "MESSAGE"` using the provided message.
+        * Executes `git push`.
+        * Returns the user to the directory they were in when the script was invoked.
+        * Includes basic error handling and will exit if Git commands fail.
+    * **Usage Example:**
+        ```bash
+        ./scripts/commit-and-push.sh "feat: Add initial user authentication endpoints"
+        ```
+* **`merge-and-push.sh <feature-branch> <target-branch>`**:
+    * **Purpose:** Automates merging a feature branch into a target branch (e.g., `main` or `develop`), pushing the updated target branch, and then switching back to the original branch.
+    * **Arguments:**
+        * `<feature-branch>` (Required): The name of the branch you want to merge (e.g., `my-feature-branch`).
+        * `<target-branch>` (Required): The name of the branch you want to merge into (e.g., `main`, `develop`).
+    * **Behavior:**
+        * Records the current branch the user is on.
+        * Ensures it runs from the project's absolute root directory.
+        * Executes `git fetch --all --prune` to get the latest remote state.
+        * Switches to the `<target-branch>`.
+        * Executes `git pull origin <target-branch>` to ensure the target branch is up-to-date.
+        * Executes `git merge --no-ff <feature-branch>` to merge the feature branch, always creating a merge commit.
+        * Executes `git push origin <target-branch>`.
+        * Switches back to the original branch the user was on before running the script.
+        * Includes error handling. If a merge conflict occurs, the script will exit, and manual resolution is required.
+    * **Usage Example:**
+        ```bash
+        # Assuming you want to merge 'feature/user-profile' into 'develop'
+        ./scripts/merge-and-push.sh feature/user-profile develop
+        ```
+
 
 ---
+
 
 ## Configuration Files Overview
 
@@ -456,7 +505,9 @@ Key configuration files and their purpose:
 * **`kubernetes/` files:** Contain placeholders like `your-registry/neavents-venue-service:latest` which need to be replaced with actual values. Many `template-*` names also need customization.
 * **`version.json`:** Nerdbank.GitVersioning configuration.
 
+
 ---
+
 
 ## Testing
 
@@ -464,13 +515,17 @@ The template includes a standard `/tests` directory with placeholder unit test p
 
 Use the `./scripts/test.sh` script to run all tests.
 
+
 ---
+
 
 ## Contributing
 
 Contributions are welcome! Please follow standard GitHub flow: Fork, Branch, Commit, Pull Request.
 
+
 ---
+
 
 ## License
 
